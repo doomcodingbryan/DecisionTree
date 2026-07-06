@@ -22,7 +22,7 @@ type GraphState = {
   onEdgesChange: (changes: EdgeChange<TransitionEdge>[]) => void;
   onConnect: (connection: Connection) => void;
   addMove: (position: { x: number; y: number }) => void;
-  addChild: (parentId: string) => void;
+  addChild: (parentId: string, label?: string) => void;
   renameNode: (id: string, label: string) => void;
   toggleStart: (id: string) => void;
   setWeight: (id: string, weight?: number) => void;
@@ -57,7 +57,7 @@ export const useGraph = create<GraphState>()(
           lastAddedId: id,
         });
       },
-      addChild: (parentId) => {
+      addChild: (parentId, label = 'New Move') => {
         const parent = get().nodes.find((n) => n.id === parentId);
         if (!parent) return;
         // fan siblings out horizontally so they don't stack
@@ -73,7 +73,7 @@ export const useGraph = create<GraphState>()(
                 x: parent.position.x + siblings * 220,
                 y: parent.position.y + 140,
               },
-              data: { label: 'New Move' },
+              data: { label },
             },
           ],
           edges: [
