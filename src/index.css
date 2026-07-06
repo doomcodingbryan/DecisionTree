@@ -1,0 +1,44 @@
+@import 'tailwindcss';
+
+body {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+/* flat, minimal zoom controls: no shadow, no rounding */
+.react-flow__controls {
+  box-shadow: none;
+}
+.react-flow__controls-button {
+  background: #ffffff;
+  border: none;
+  border-bottom: 1px solid #000000;
+  border-radius: 0;
+  fill: #000000;
+}
+.react-flow__controls-button:hover {
+  background: #e4e4e4;
+}
+
+/* kill React Flow's rounded default on handles (style prop already sets size) */
+.react-flow__handle {
+  border-radius: 0;
+}
+
+/* bounce a freshly-added node in */
+@keyframes node-pop {
+  0% {
+    transform: scale(0.5);
+  }
+  55% {
+    transform: scale(1.12);
+  }
+  75% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.animate-pop {
+  animation: node-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
