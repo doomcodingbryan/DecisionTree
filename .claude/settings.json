@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rtk grep *)",
+      "Bash(nslookup github.com)",
+      "Bash(dscacheutil -q host -a name github.com)",
+      "Bash(nc -z -G 5 -w 5 140.82.112.4 443)",
+      "Bash(nc -z -G 5 -w 5 github.com 22)",
+      "Bash(nc -z -G 5 -w 5 ssh.github.com 443)",
+      "Bash(nc -z -G 5 -w 5 1.1.1.1 443)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(nslookup -type=AAAA github.com)",
+      "Bash(scutil --proxy)",
+      "Bash(git config *)",
+      "Bash(scutil --nc list)",
+      "Bash(rtk ps *)",
+      "Bash(networksetup -listallnetworkservices)"
+    ]
+  }
+}
