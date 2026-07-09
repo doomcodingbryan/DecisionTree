@@ -1,27 +1,60 @@
 @import 'tailwindcss';
 
 body {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  margin: 0;
+  background: #000000;
+  font-family:
+    Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
-/* flat, minimal zoom controls: no shadow, no rounding */
+.game-plan-flow {
+  font-family:
+    Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+.game-plan-flow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+
+.game-plan-flow .react-flow__pane {
+  cursor: grab;
+}
+
+.game-plan-flow .react-flow__pane:active {
+  cursor: grabbing;
+}
+
+.game-plan-flow .react-flow__attribution {
+  background: transparent;
+  color: #525252;
+}
+
 .react-flow__controls {
   box-shadow: none;
+  border: 1px solid #262626;
 }
 .react-flow__controls-button {
-  background: #ffffff;
+  background: #050505;
   border: none;
-  border-bottom: 1px solid #000000;
+  border-bottom: 1px solid #262626;
   border-radius: 0;
-  fill: #000000;
+  fill: #e5e5e5;
 }
 .react-flow__controls-button:hover {
-  background: #e4e4e4;
+  background: #171717;
 }
 
-/* kill React Flow's rounded default on handles (style prop already sets size) */
-.react-flow__handle {
-  border-radius: 0;
+/* ghost suggestion nodes are unselectable/undraggable, which makes React Flow
+   strip their pointer events — the ✓/✗ buttons still need clicks */
+.react-flow__node-ghost {
+  pointer-events: all !important;
 }
 
 /* bounce a freshly-added node in */

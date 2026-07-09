@@ -240,3 +240,24 @@ export const MOVE_LIBRARY: Record<string, string[]> = {
 
 // flat list for filtering
 export const ALL_MOVES: string[] = Object.values(MOVE_LIBRARY).flat();
+
+// move name -> its MOVE_LIBRARY category
+export const MOVE_CATEGORY: Record<string, string> = Object.fromEntries(
+  Object.entries(MOVE_LIBRARY).flatMap(([category, moves]) =>
+    moves.map((m) => [m, category]),
+  ),
+);
+
+// Chip word for an edge landing on a move of this category. Positions stay
+// unlabeled — arriving in a position says nothing about how you got there.
+const CATEGORY_EDGE_LABEL: Record<string, string> = {
+  Takedowns: 'takedown',
+  Passes: 'pass',
+  Sweeps: 'sweep',
+  Submissions: 'submit',
+  Escapes: 'escape',
+  Guards: 'guard',
+};
+
+export const edgeLabelFor = (targetMove: string): string | undefined =>
+  CATEGORY_EDGE_LABEL[MOVE_CATEGORY[targetMove] ?? ''];

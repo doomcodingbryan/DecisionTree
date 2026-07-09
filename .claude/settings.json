@@ -14,7 +14,9 @@
       "Bash(git config *)",
       "Bash(scutil --nc list)",
       "Bash(rtk ps *)",
-      "Bash(networksetup -listallnetworkservices)"
+      "Bash(networksetup -listallnetworkservices)",
+      "WebFetch(domain:www.whitebeltclub.com)",
+      "WebSearch"
     ]
   }
 }

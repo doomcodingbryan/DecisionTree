@@ -5,6 +5,9 @@
 // Hand-authored for the common core, grounded in GrappleMap tag co-occurrence
 // (scripts/grapplemap.mjs). `weight` is optional for now: order = default rank.
 // Phase 2 (Reddit/NLP) will populate weights with real-world popularity.
+// .ts extension so scripts/check-transitions.mjs can run this under plain node
+import { MOVE_CATEGORY } from './moves.ts';
+
 export type Suggestion = { to: string; weight?: number; note?: string };
 
 export const TRANSITIONS: Record<string, Suggestion[]> = {
@@ -160,7 +163,27 @@ export const TRANSITIONS: Record<string, Suggestion[]> = {
   'Granby Roll': [{ to: 'Turtle' }, { to: 'Open Guard' }],
 };
 
-// Recommended next moves for a given label, ranked (weight desc; ties keep authored order).
+// Generic follow-ups for moves without an authored entry, keyed by the move's
+// category: passes/sweeps/takedowns land on top, a failed submission retreats
+// to control, escapes recover guard or the feet. Every name must exist in
+// ALL_MOVES — enforced by scripts/check-transitions.mjs.
+export const CATEGORY_FALLBACK: Record<string, string[]> = {
+  Positions: ['Mount', 'Side Control', 'Back Control'],
+  Guards: ['Triangle Choke', 'Armbar', 'Kimura', 'Scissor Sweep'],
+  Passes: ['Side Control', 'Mount', 'Knee on Belly'],
+  Sweeps: ['Mount', 'Side Control'],
+  Takedowns: ['Side Control', 'Half Guard', 'Front Headlock'],
+  Submissions: ['Back Control', 'Mount'],
+  Escapes: ['Closed Guard', 'Half Guard', 'Standing'],
+};
+
+// Recommended next moves for a given label, ranked (weight desc; ties keep
+// authored order). Unauthored moves fall back to category-generic follow-ups.
 export function getSuggestions(label: string): Suggestion[] {
-  return (TRANSITIONS[label] ?? []).slice().sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
+  const authored = TRANSITIONS[label];
+  if (authored?.length)
+    return authored.slice().sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
+  return (CATEGORY_FALLBACK[MOVE_CATEGORY[label] ?? ''] ?? [])
+    .filter((to) => to !== label)
+    .map((to) => ({ to }));
 }
