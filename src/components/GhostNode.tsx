@@ -19,32 +19,35 @@ export default function GhostNode({
       y: positionAbsoluteY,
     });
 
-  if (data.custom) return <CustomGhost spawn={spawn} />;
+  if (data.custom)
+    return <CustomGhost spawn={spawn} suggested={data.suggested ?? []} />;
 
   return (
     <div
-      className="relative opacity-50 transition-opacity hover:opacity-90"
+      // nopan: undraggable nodes don't get it from React Flow, and without it
+      // the pan handler swallows mousedown before React handlers see it
+      className="nopan relative opacity-50 transition-opacity hover:opacity-90"
       style={{
         width: 208,
         height: 88,
-        background: '#0A0A0A',
-        border: '1px dashed #525252',
+        background: '#FFFFFF',
+        border: '1px dashed #A3A3A3',
       }}
     >
-      <div className="absolute inset-x-0 top-0 flex h-7 items-center border-b border-dashed border-neutral-800 bg-neutral-950 px-2.5">
+      <div className="absolute inset-x-0 top-0 flex h-7 items-center border-b border-dashed border-neutral-200 bg-neutral-50 px-2.5">
         <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
           Suggested
         </span>
       </div>
       <span
-        className="absolute left-3 top-10 max-w-[176px] overflow-hidden text-ellipsis whitespace-nowrap text-[15px] tracking-tight text-neutral-300"
+        className="absolute left-3 top-10 max-w-[176px] overflow-hidden text-ellipsis whitespace-nowrap text-[15px] tracking-tight text-neutral-700"
         title={data.label}
       >
         {data.label}
       </span>
       <div className="absolute bottom-2 right-2 flex gap-1">
         <button
-          className="nodrag flex h-6 w-6 items-center justify-center border border-neutral-700 bg-neutral-950 font-mono text-[11px] leading-none text-neutral-300 hover:border-red-500 hover:text-red-400"
+          className="nodrag flex h-6 w-6 items-center justify-center border border-neutral-300 bg-white font-mono text-[11px] leading-none text-neutral-500 hover:border-red-500 hover:text-red-500"
           title="Dismiss suggestion"
           onClick={(e) => {
             e.stopPropagation();
@@ -54,7 +57,7 @@ export default function GhostNode({
           ✗
         </button>
         <button
-          className="nodrag flex h-6 w-6 items-center justify-center border border-white bg-white font-mono text-[11px] leading-none text-black hover:bg-neutral-200"
+          className="nodrag flex h-6 w-6 items-center justify-center border border-black bg-black font-mono text-[11px] leading-none text-white hover:bg-neutral-800"
           title="Add this move"
           onClick={(e) => {
             e.stopPropagation();
@@ -69,39 +72,49 @@ export default function GhostNode({
   );
 }
 
-function CustomGhost({ spawn }: { spawn: (label?: string) => void }) {
+function CustomGhost({
+  spawn,
+  suggested,
+}: {
+  spawn: (label?: string) => void;
+  suggested: string[];
+}) {
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
-  // the card survives a spawn (parent stays selected), so reset it
+  const [focused, setFocused] = useState(false);
+  // the card survives a spawn (parent stays anchored), so reset it
   const pick = (label?: string) => {
     spawn(label);
     setQuery('');
     setHighlight(0);
   };
   const q = query.trim().toLowerCase();
+  // empty query → the suggestions that didn't fit on the two cards
   const options = q
     ? ALL_MOVES.filter((m) => m.toLowerCase().includes(q)).slice(0, 6)
-    : [];
+    : suggested;
 
   return (
     <div
-      className="relative opacity-50 transition-opacity focus-within:opacity-95 hover:opacity-90"
+      className="nopan relative opacity-50 transition-opacity focus-within:opacity-95 hover:opacity-90"
       style={{
         width: 208,
         height: 88,
-        background: '#0A0A0A',
-        border: '1px dashed #525252',
+        background: '#FFFFFF',
+        border: '1px dashed #A3A3A3',
       }}
     >
-      <div className="absolute inset-x-0 top-0 flex h-7 items-center border-b border-dashed border-neutral-800 bg-neutral-950 px-2.5">
+      <div className="absolute inset-x-0 top-0 flex h-7 items-center border-b border-dashed border-neutral-200 bg-neutral-50 px-2.5">
         <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
           Your Move
         </span>
       </div>
       <input
-        className="nodrag absolute left-3 top-10 w-[176px] bg-transparent text-[15px] text-white outline-none placeholder:text-neutral-600"
+        className="nodrag absolute left-3 top-10 w-[176px] bg-transparent text-[15px] text-neutral-900 outline-none placeholder:text-neutral-400"
         placeholder="Type a move…"
         value={query}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         onChange={(e) => {
           setQuery(e.target.value);
           setHighlight(0);
@@ -120,18 +133,23 @@ function CustomGhost({ spawn }: { spawn: (label?: string) => void }) {
           }
         }}
       />
-      <span className="absolute bottom-2 left-3 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600">
+      <span className="absolute bottom-2 left-3 font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-400">
         ↵ adds · blank if empty
       </span>
-      {options.length > 0 && (
-        <ul className="nodrag nowheel absolute left-0 top-full z-50 mt-1 w-full border border-neutral-700 bg-neutral-950 font-mono text-[11px] shadow-2xl">
+      {focused && options.length > 0 && (
+        <ul className="nodrag nowheel absolute left-0 top-full z-50 mt-1 w-full border border-neutral-300 bg-white font-mono text-[11px] shadow-xl">
+          {!q && (
+            <li className="px-2 pt-2 text-[9px] uppercase tracking-[0.18em] text-neutral-400">
+              Suggested next
+            </li>
+          )}
           {options.map((move, i) => (
             <li key={move}>
               <button
                 className={`block w-full px-2 py-1 text-left ${
                   i === highlight
-                    ? 'bg-white text-black'
-                    : 'text-neutral-300 hover:bg-neutral-900 hover:text-white'
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-600 hover:bg-neutral-100 hover:text-black'
                 }`}
                 // onMouseDown fires before the input's onBlur, so the pick wins
                 onMouseDown={(e) => {

@@ -21,7 +21,7 @@ export default function TransitionEdge({
   const [editing, setEditing] = useState(false);
   const setLabel = useGraph((s) => s.setLabel);
   const ghost = data?.ghost ?? false;
-  const edgeColor = selected ? '#FFFFFF' : '#525252';
+  const edgeColor = selected ? '#4F46E5' : '#A3A3A3';
 
   // labelX/labelY = curve midpoint; siblings sharing one outlet diverge per
   // target, so their chips don't stack
@@ -47,7 +47,7 @@ export default function TransitionEdge({
         style={{
           stroke: edgeColor,
           strokeWidth: selected ? 1.8 : 1.2,
-          strokeDasharray: ghost ? '6 4' : undefined,
+          strokeDasharray: ghost ? '6 4' : '4 4',
           opacity: ghost ? 0.5 : 1,
         }}
       />
@@ -62,7 +62,7 @@ export default function TransitionEdge({
         >
           {editing ? (
             <input
-              className="w-24 border border-neutral-500 bg-neutral-950 px-2 py-[3px] font-mono text-[10px] lowercase tracking-[0.08em] text-white outline-none"
+              className="w-24 border border-neutral-400 bg-white px-2 py-[3px] font-mono text-[10px] lowercase tracking-[0.08em] text-neutral-900 outline-none"
               style={{ borderRadius: 5 }}
               defaultValue={data?.label}
               autoFocus
@@ -77,8 +77,8 @@ export default function TransitionEdge({
             <button
               className={`border px-2 py-[3px] font-mono text-[10px] lowercase tracking-[0.08em] ${
                 selected
-                  ? 'border-neutral-400 bg-neutral-900 text-white'
-                  : 'border-neutral-800 bg-neutral-950 text-neutral-400'
+                  ? 'border-indigo-600 bg-indigo-600 text-white'
+                  : 'border-neutral-400 bg-white text-neutral-700'
               } ${data?.label ? '' : 'opacity-30 hover:opacity-100'}`}
               style={{ borderRadius: 5 }}
               onDoubleClick={() => setEditing(true)}

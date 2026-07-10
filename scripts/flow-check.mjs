@@ -1,4 +1,4 @@
-// E2E flow check: home → create → edit → undo/redo → back → reopen → reload → delete.
+// E2E flow check: home → create → edit → notes → ghosts → undo/redo → back → reopen → reload → delete.
 // Run: npm run build && npx vite preview --port 4173 & then: npx -y playwright install chromium (once), npm i --no-save playwright, node scripts/flow-check.mjs
 import { chromium } from 'playwright';
 import assert from 'node:assert';
@@ -33,17 +33,19 @@ await page.fill('input[placeholder="Search moves…"]', 'kimura');
 await page.click('aside button:text-is("Kimura")');
 await page.waitForSelector('text=12 nodes');
 
-// 3c. node popover: already-mapped children are not re-suggested, and an
-// accepted suggestion auto-labels its edge from the target's category
-await page.hover('.react-flow__node:has-text("Standing")');
-await page.click('.react-flow__node button[title="Add connected move"]');
-await page.waitForSelector('text=Suggested next');
+// 3c. the pick-your-own ghost card: focusing its input drops down the
+// suggestions that didn't fit on the two cards, minus already-mapped children;
+// an accepted move auto-labels its edge from the target's category
+await page.click('.react-flow__node:has-text("Standing")'); // pans ghosts into view
+await page.waitForSelector('.react-flow__node-ghost');
 assert.equal(
-  await page.locator('.react-flow__node button:text-is("Arm Drag")').count(),
+  await page.locator('.react-flow__node-ghost:has-text("Arm Drag")').count(),
   0,
   'already-mapped child should be filtered from suggestions',
 );
-await page.click('.react-flow__node button:text-is("Double Leg")');
+await page.click('input[placeholder="Type a move…"]');
+await page.waitForSelector('text=Suggested next');
+await page.click('.react-flow__node-ghost button:text-is("Ankle Pick")');
 await page.waitForSelector('text=13 nodes');
 await page.waitForSelector('button:text-is("takedown")'); // auto-labeled chip
 
@@ -87,6 +89,14 @@ await page.waitForSelector('text=13 nodes');
 await page.keyboard.press('ControlOrMeta+z');
 await page.waitForSelector('text=14 nodes');
 await page.waitForSelector('text=11 links');
+
+// 3g. notes: double-click under the name, type, blur to save
+await page.click('button:text-is("Fit")'); // earlier pans may have moved it offscreen
+await page.waitForTimeout(400);
+await page.dblclick('.react-flow__node:has-text("Snap Down") p');
+await page.keyboard.type('Fake the snap, shoot double');
+await page.click('.react-flow__pane', { position: { x: 40, y: 300 } });
+await page.waitForSelector('text=Fake the snap, shoot double');
 
 // 4. back to home → card with name, counts, updated date
 await page.click('text=← All Plans');

@@ -18,7 +18,7 @@ import {
   type TransitionEdge as TransitionEdgeType,
 } from '../store';
 import { sampleEdges, sampleNodes } from '../data/sampleGraph';
-import { edgeLabelFor } from '../data/moves';
+import { edgeLabelFor, MOVE_CATEGORY } from '../data/moves';
 import { getSuggestions } from '../data/transitions';
 import GhostNode from './GhostNode';
 import MoveLibrary from './MoveLibrary';
@@ -58,12 +58,12 @@ export default function Canvas({ treeId }: { treeId: string }) {
   }, []);
 
   if (activeId !== treeId) {
-    return <div className="h-screen w-screen bg-black" />;
+    return <div className="h-screen w-screen bg-[#FAFAFA]" />;
   }
 
   return (
     <ReactFlowProvider>
-      <div className="flex h-screen w-screen bg-black text-white">
+      <div className="flex h-screen w-screen bg-[#FAFAFA] text-neutral-900">
         <MoveLibrary />
         <Flow />
       </div>
@@ -109,11 +109,19 @@ function Flow() {
     const taken = new Set(
       children.map((e) => nodes.find((n) => n.id === e.target)?.data.label),
     );
-    // 2 recommendations + 1 pick-your-own card
-    const picks = getSuggestions(anchor.data.label)
+    // 2 recommendation cards + 1 pick-your-own card whose dropdown holds the
+    // rest; deep chains surface submissions first (time to finish)
+    let pool = getSuggestions(anchor.data.label)
       .map((s) => s.to)
-      .filter((m) => !taken.has(m) && !dismissed.has(`${anchor.id}→${m}`))
-      .slice(0, 2);
+      .filter((m) => !taken.has(m) && !dismissed.has(`${anchor.id}→${m}`));
+    if (chainDepth(anchor.id, edges) >= 2) {
+      pool = [
+        ...pool.filter((m) => MOVE_CATEGORY[m] === 'Submissions'),
+        ...pool.filter((m) => MOVE_CATEGORY[m] !== 'Submissions'),
+      ];
+    }
+    const picks = pool.slice(0, 2);
+    const more = pool.slice(2, 8);
     // fan ghosts into the first free slots below the anchor — the natural
     // slot may already hold an unrelated node
     const occupied = (p: { x: number; y: number }) =>
@@ -159,7 +167,7 @@ function Flow() {
       position: nextFreeSlot(),
       data:
         label === 'custom'
-          ? { label: '', parentId: anchor.id, custom: true }
+          ? { label: '', parentId: anchor.id, custom: true, suggested: more }
           : { label, parentId: anchor.id },
       draggable: false,
       selectable: false,
@@ -187,7 +195,10 @@ function Flow() {
   // drag-start and yank the canvas mid-drag.
   const ghostsRef = useRef(ghostNodes);
   ghostsRef.current = ghostNodes;
-  const panToGhosts = (node: { position: { x: number; y: number } }) => {
+  const panToGhosts = (node: {
+    id: string;
+    position: { x: number; y: number };
+  }) => {
     requestAnimationFrame(() => {
       const ghosts = ghostsRef.current;
       const wrap = wrapRef.current;
@@ -212,7 +223,9 @@ function Flow() {
           height: Math.max(...ys) - Math.min(...ys) + 88,
         },
         { padding: 0.25, duration: 300 },
-      );
+        // panning slides the canvas under the pointer, which un-hovers the
+        // anchor mid-animation — re-assert it once the pan lands
+      ).then(() => hoverEnter(node.id));
     });
   };
 
@@ -262,7 +275,7 @@ function Flow() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         connectionLineType={ConnectionLineType.Bezier}
-        connectionLineStyle={{ stroke: '#F5F5F5', strokeWidth: 1.4 }}
+        connectionLineStyle={{ stroke: '#4F46E5', strokeWidth: 1.4 }}
         defaultEdgeOptions={defaultEdgeOptions}
         snapToGrid
         snapGrid={[24, 24]}
@@ -275,13 +288,13 @@ function Flow() {
         fitView
         fitViewOptions={{ padding: 0.35 }}
         className="game-plan-flow"
-        style={{ background: '#030303' }}
+        style={{ background: '#FAFAFA' }}
       >
         <Background
           variant={BackgroundVariant.Dots}
           gap={24}
           size={1.5}
-          color="rgba(255,255,255,0.12)"
+          color="rgba(0,0,0,0.16)"
         />
         <BlueprintFrame />
         <FitOnFirstPaint />
@@ -310,14 +323,29 @@ function FitOnFirstPaint() {
   return null;
 }
 
+// How many moves deep a node sits, walking the first incoming edge per node,
+// cycle-guarded. ponytail: a hint for ranking, not real graph analysis.
+function chainDepth(id: string, edges: TransitionEdgeType[]): number {
+  const seen = new Set<string>([id]);
+  let cur = id;
+  let depth = 0;
+  for (;;) {
+    const incoming = edges.find((e) => e.target === cur);
+    if (!incoming || seen.has(incoming.source)) return depth;
+    seen.add(incoming.source);
+    cur = incoming.source;
+    depth++;
+  }
+}
+
 function BlueprintFrame() {
   // z-0 keeps the corner marks under React Flow panels (z-5), so they never
   // draw through the toolbar
   return (
     <div className="pointer-events-none absolute inset-0 z-0">
-      <div className="absolute left-8 top-8 h-8 w-8 border-l-2 border-t-2 border-neutral-800" />
-      <div className="absolute bottom-8 right-8 h-8 w-8 border-b-2 border-r-2 border-neutral-800" />
-      <div className="absolute right-8 top-20 hidden font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-600 sm:block">
+      <div className="absolute left-8 top-8 h-8 w-8 border-l-2 border-t-2 border-neutral-300" />
+      <div className="absolute bottom-8 right-8 h-8 w-8 border-b-2 border-r-2 border-neutral-300" />
+      <div className="absolute right-8 top-20 hidden font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-400 sm:block">
         GAME PLAN / CANVAS
       </div>
     </div>
@@ -341,22 +369,22 @@ function EmptyState() {
   };
   return (
     <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 px-4 text-center">
-      <div className="border border-neutral-800 bg-black/85 px-6 py-5 backdrop-blur">
+      <div className="border border-neutral-300 bg-white/90 px-6 py-5 backdrop-blur">
         <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
           Empty Plan
         </p>
-        <p className="mt-2 text-[24px] tracking-tight text-white">
+        <p className="mt-2 text-[24px] tracking-tight text-neutral-900">
           Start mapping your A-game.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <button
-            className="pointer-events-auto h-10 border border-white bg-white px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-black hover:bg-neutral-200"
+            className="pointer-events-auto h-10 border border-black bg-black px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-white hover:bg-neutral-800"
             onClick={loadSample}
           >
             Load Sample
           </button>
           <button
-            className="pointer-events-auto h-10 border border-neutral-700 bg-neutral-950 px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-white hover:border-neutral-500 hover:bg-neutral-900"
+            className="pointer-events-auto h-10 border border-neutral-300 bg-white px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-neutral-900 hover:border-neutral-500 hover:bg-neutral-50"
             onClick={add}
           >
             Add Move

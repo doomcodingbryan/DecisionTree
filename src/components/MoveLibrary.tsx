@@ -34,7 +34,7 @@ export default function MoveLibrary() {
   if (!open) {
     return (
       <button
-        className="z-20 flex w-10 shrink-0 items-start justify-center border-r border-neutral-800 bg-black pt-4 font-mono text-[9px] uppercase tracking-[0.24em] text-neutral-500 hover:bg-neutral-950 hover:text-white"
+        className="z-20 flex w-10 shrink-0 items-start justify-center border-r border-neutral-200 bg-white pt-4 font-mono text-[9px] uppercase tracking-[0.24em] text-neutral-500 hover:bg-neutral-50 hover:text-black"
         onClick={() => setOpen(true)}
         title="Open move library"
       >
@@ -44,13 +44,13 @@ export default function MoveLibrary() {
   }
 
   return (
-    <aside className="z-20 flex w-64 shrink-0 flex-col border-r border-neutral-800 bg-black">
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-neutral-800 px-3">
+    <aside className="z-20 flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-neutral-200 px-3">
         <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
           Move Library
         </span>
         <button
-          className="h-6 w-6 border border-neutral-800 font-mono text-[11px] leading-none text-neutral-400 hover:border-neutral-500 hover:text-white"
+          className="h-6 w-6 border border-neutral-300 font-mono text-[11px] leading-none text-neutral-500 hover:border-neutral-500 hover:text-black"
           onClick={() => setOpen(false)}
           title="Collapse"
         >
@@ -58,7 +58,7 @@ export default function MoveLibrary() {
         </button>
       </div>
       <input
-        className="h-10 shrink-0 border-b border-neutral-800 bg-neutral-950 px-3 font-mono text-[11px] text-white outline-none placeholder:text-neutral-600"
+        className="h-10 shrink-0 border-b border-neutral-200 bg-neutral-50 px-3 font-mono text-[11px] text-neutral-900 outline-none placeholder:text-neutral-400"
         placeholder="Search moves…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -73,9 +73,9 @@ export default function MoveLibrary() {
             open={Boolean(q)}
             className="group"
           >
-            <summary className="sticky top-0 flex cursor-pointer list-none items-center justify-between border-b border-neutral-900 bg-black px-3 py-2 font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500 hover:text-white [&::-webkit-details-marker]:hidden">
+            <summary className="sticky top-0 flex cursor-pointer list-none items-center justify-between border-b border-neutral-100 bg-white px-3 py-2 font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500 hover:text-black [&::-webkit-details-marker]:hidden">
               <span>{category}</span>
-              <span className="flex items-center gap-2 text-neutral-600">
+              <span className="flex items-center gap-2 text-neutral-400">
                 {moves.length}
                 <span className="transition-transform group-open:rotate-90">
                   ›
@@ -91,7 +91,7 @@ export default function MoveLibrary() {
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
                 onClick={() => addAtCenter(move)}
-                className="block w-full cursor-grab px-3 py-1.5 text-left text-[13px] tracking-tight text-neutral-300 hover:bg-neutral-900 hover:text-white active:cursor-grabbing"
+                className="block w-full cursor-grab px-3 py-1.5 text-left text-[13px] tracking-tight text-neutral-700 hover:bg-neutral-100 hover:text-black active:cursor-grabbing"
                 title="Drag onto canvas, or click to add"
               >
                 {move}
@@ -100,12 +100,12 @@ export default function MoveLibrary() {
           </details>
         ))}
         {groups.length === 0 && (
-          <p className="px-3 py-4 font-mono text-[11px] text-neutral-600">
+          <p className="px-3 py-4 font-mono text-[11px] text-neutral-400">
             No moves match “{query.trim()}”.
           </p>
         )}
       </div>
-      <p className="shrink-0 border-t border-neutral-800 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-600">
+      <p className="shrink-0 border-t border-neutral-200 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">
         Drag onto canvas · click to add
       </p>
     </aside>

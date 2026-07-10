@@ -5,7 +5,7 @@ export const sampleNodes: MoveNode[] = [
     id: 'sample-standing',
     type: 'move',
     position: { x: 0, y: 0 },
-    data: { label: 'Standing', isStart: true },
+    data: { label: 'Standing', notes: 'Level change early. Hands inside.' },
   },
   {
     id: 'sample-arm-drag',
@@ -17,7 +17,10 @@ export const sampleNodes: MoveNode[] = [
     id: 'sample-guard-pull',
     type: 'move',
     position: { x: 0, y: 160 },
-    data: { label: 'Guard Pull' },
+    data: {
+      label: 'Guard Pull',
+      notes: 'Grip sleeve + collar first.\nSit straight to closed guard.',
+    },
   },
   {
     id: 'sample-snap-down',

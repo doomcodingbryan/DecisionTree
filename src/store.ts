@@ -12,11 +12,12 @@ import {
 } from '@xyflow/react';
 import { edgeLabelFor } from './data/moves';
 
-export type MoveNode = Node<{ label: string; isStart?: boolean }, 'move'>;
+export type MoveNode = Node<{ label: string; notes?: string }, 'move'>;
 // ghost = rendered-only suggestion; never stored, so `ghost` on an edge only
-// ever appears on derived ghost edges. `custom` marks the pick-your-own card.
+// ever appears on derived ghost edges. `custom` marks the pick-your-own card,
+// whose dropdown offers the `suggested` moves not shown as cards.
 export type GhostNode = Node<
-  { label: string; parentId: string; custom?: boolean },
+  { label: string; parentId: string; custom?: boolean; suggested?: string[] },
   'ghost'
 >;
 export type TransitionEdge = Edge<
@@ -78,7 +79,7 @@ type GraphState = {
   undo: () => void;
   redo: () => void;
   renameNode: (id: string, label: string) => void;
-  toggleStart: (id: string) => void;
+  setNotes: (id: string, notes?: string) => void;
   setLabel: (id: string, label?: string) => void;
   clear: () => void;
   load: (nodes: MoveNode[], edges: TransitionEdge[]) => void;
@@ -276,13 +277,11 @@ export const useGraph = create<GraphState>()(
             ),
           });
         },
-        toggleStart: (id) => {
+        setNotes: (id, notes) => {
           snapshot();
           commit({
             nodes: get().nodes.map((n) =>
-              n.id === id
-                ? { ...n, data: { ...n.data, isStart: !n.data.isStart } }
-                : n,
+              n.id === id ? { ...n, data: { ...n.data, notes } } : n,
             ),
           });
         },
