@@ -23,7 +23,6 @@ import { getSuggestions } from '../data/transitions';
 import GhostNode from './GhostNode';
 import MoveLibrary from './MoveLibrary';
 import MoveNode from './MoveNode';
-import Toolbar from './Toolbar';
 import TransitionEdge from './TransitionEdge';
 
 const nodeTypes = { move: MoveNode, ghost: GhostNode };
@@ -298,7 +297,6 @@ function Flow() {
         />
         <BlueprintFrame />
         <FitOnFirstPaint />
-        <Toolbar />
         <Controls showInteractive={false} position="bottom-left" />
         {nodes.length === 0 && <EmptyState />}
       </ReactFlow>

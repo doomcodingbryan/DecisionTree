@@ -24,8 +24,9 @@ await page.click('aside summary:has-text("Submissions")'); // re-collapse
 assert.match(page.url(), /#\/t\/.+/, 'route should be #/t/<id>');
 await page.waitForSelector('text=Sample Game Plan');
 
-// 3. edit: add a node via toolbar, count should tick up
-await page.click('button:text-is("Add")');
+// 3. edit: add a node from the sidebar, count should tick up
+await page.fill('input[placeholder="Search moves…"]', 'armbar');
+await page.click('aside button:text-is("Armbar")');
 await page.waitForSelector('text=11 nodes');
 
 // 3b. sidebar: search the library, click a move to add it
@@ -91,7 +92,7 @@ await page.waitForSelector('text=14 nodes');
 await page.waitForSelector('text=11 links');
 
 // 3g. notes: double-click under the name, type, blur to save
-await page.click('button:text-is("Fit")'); // earlier pans may have moved it offscreen
+await page.click('.react-flow__controls-fitview'); // earlier pans may have moved it offscreen
 await page.waitForTimeout(400);
 await page.dblclick('.react-flow__node:has-text("Snap Down") p');
 await page.keyboard.type('Fake the snap, shoot double');
