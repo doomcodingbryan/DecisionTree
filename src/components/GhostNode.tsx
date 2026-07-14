@@ -30,24 +30,25 @@ export default function GhostNode({
       style={{
         width: 208,
         height: 88,
-        background: '#FFFFFF',
-        border: '1px dashed #A3A3A3',
+        background: '#FBF9F0',
+        border: '1px dashed #7A7461',
+        borderRadius: 10,
       }}
     >
-      <div className="absolute inset-x-0 top-0 flex h-7 items-center border-b border-dashed border-neutral-200 bg-neutral-50 px-2.5">
+      <div className="absolute inset-x-0 top-0 flex h-7 items-center rounded-t-[9px] border-b border-dashed border-[#DCD6C1] bg-[#EFEBDC] px-2.5">
         <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
           Suggested
         </span>
       </div>
       <span
-        className="absolute left-3 top-10 max-w-[176px] overflow-hidden text-ellipsis whitespace-nowrap text-[15px] tracking-tight text-neutral-700"
+        className="absolute left-3 top-10 max-w-[176px] overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[15px] tracking-tight text-neutral-700"
         title={data.label}
       >
         {data.label}
       </span>
       <div className="absolute bottom-2 right-2 flex gap-1">
         <button
-          className="nodrag flex h-6 w-6 items-center justify-center border border-neutral-300 bg-white font-mono text-[11px] leading-none text-neutral-500 hover:border-red-500 hover:text-red-500"
+          className="nodrag flex h-6 w-6 items-center justify-center rounded-full border border-neutral-900 bg-[#F3EFE2] font-mono text-[11px] leading-none text-neutral-500 hover:border-red-500 hover:text-red-500"
           title="Dismiss suggestion"
           onClick={(e) => {
             e.stopPropagation();
@@ -57,7 +58,7 @@ export default function GhostNode({
           ✗
         </button>
         <button
-          className="nodrag flex h-6 w-6 items-center justify-center border border-black bg-black font-mono text-[11px] leading-none text-white hover:bg-neutral-800"
+          className="nodrag flex h-6 w-6 items-center justify-center rounded-full border border-black bg-black font-mono text-[11px] leading-none text-white hover:bg-neutral-800"
           title="Add this move"
           onClick={(e) => {
             e.stopPropagation();
@@ -100,17 +101,18 @@ function CustomGhost({
       style={{
         width: 208,
         height: 88,
-        background: '#FFFFFF',
-        border: '1px dashed #A3A3A3',
+        background: '#FBF9F0',
+        border: '1px dashed #7A7461',
+        borderRadius: 10,
       }}
     >
-      <div className="absolute inset-x-0 top-0 flex h-7 items-center border-b border-dashed border-neutral-200 bg-neutral-50 px-2.5">
+      <div className="absolute inset-x-0 top-0 flex h-7 items-center rounded-t-[9px] border-b border-dashed border-[#DCD6C1] bg-[#EFEBDC] px-2.5">
         <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
           Your Move
         </span>
       </div>
       <input
-        className="nodrag absolute left-3 top-10 w-[176px] bg-transparent text-[15px] text-neutral-900 outline-none placeholder:text-neutral-400"
+        className="nodrag absolute left-3 top-10 w-[176px] bg-transparent font-serif text-[15px] text-neutral-900 outline-none placeholder:text-neutral-400"
         placeholder="Type a move…"
         value={query}
         onFocus={() => setFocused(true)}
@@ -137,7 +139,7 @@ function CustomGhost({
         ↵ adds · blank if empty
       </span>
       {focused && options.length > 0 && (
-        <ul className="nodrag nowheel absolute left-0 top-full z-50 mt-1 w-full border border-neutral-300 bg-white font-mono text-[11px] shadow-xl">
+        <ul className="nodrag nowheel absolute left-0 top-full z-50 mt-1 w-full border border-neutral-900 bg-[#FBF9F0] font-mono text-[11px] shadow-xl">
           {!q && (
             <li className="px-2 pt-2 text-[9px] uppercase tracking-[0.18em] text-neutral-400">
               Suggested next
@@ -149,7 +151,7 @@ function CustomGhost({
                 className={`block w-full px-2 py-1 text-left ${
                   i === highlight
                     ? 'bg-neutral-900 text-white'
-                    : 'text-neutral-600 hover:bg-neutral-100 hover:text-black'
+                    : 'text-neutral-600 hover:bg-[#EAE5D3] hover:text-black'
                 }`}
                 // onMouseDown fires before the input's onBlur, so the pick wins
                 onMouseDown={(e) => {

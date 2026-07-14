@@ -4,7 +4,7 @@ import { MOVE_LIBRARY } from '../data/moves';
 import { useGraph } from '../store';
 
 const actionBtn =
-  'h-7 border border-neutral-300 bg-white px-2 font-mono text-[9px] uppercase tracking-[0.12em] text-neutral-700 hover:border-neutral-500 hover:bg-neutral-50 hover:text-black disabled:pointer-events-none disabled:opacity-35';
+  'h-7 rounded-full border border-neutral-900 bg-[#F7F4E8] px-3 font-mono text-[9px] uppercase tracking-[0.12em] text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-[#F3EFE2] disabled:pointer-events-none disabled:opacity-35';
 
 export default function MoveLibrary() {
   const [open, setOpen] = useState(() => window.innerWidth >= 1024);
@@ -79,16 +79,16 @@ export default function MoveLibrary() {
 
   if (!open) {
     return (
-      <div className="z-20 flex w-10 shrink-0 flex-col border-r border-neutral-200 bg-white">
+      <div className="z-20 flex w-10 shrink-0 flex-col border-r border-neutral-900 bg-[#F7F4E8]">
         <a
-          href="#/"
-          className="flex h-10 w-full items-center justify-center border-b border-neutral-200 font-mono text-[13px] text-neutral-500 hover:bg-neutral-50 hover:text-black"
+          href="#/plans"
+          className="flex h-10 w-full items-center justify-center border-b border-[#DCD6C1] font-mono text-[13px] text-neutral-900 hover:bg-neutral-900 hover:text-[#F3EFE2]"
           title="All plans"
         >
           ←
         </a>
         <button
-          className="flex w-full flex-1 items-start justify-center pt-4 font-mono text-[9px] uppercase tracking-[0.24em] text-neutral-500 hover:bg-neutral-50 hover:text-black"
+          className="flex w-full flex-1 items-start justify-center pt-4 font-mono text-[9px] uppercase tracking-[0.24em] text-neutral-500 hover:bg-[#EFEBDC] hover:text-black"
           onClick={() => setOpen(true)}
           title="Open move library"
         >
@@ -99,16 +99,16 @@ export default function MoveLibrary() {
   }
 
   return (
-    <aside className="z-20 flex w-64 shrink-0 flex-col border-r border-neutral-200 bg-white">
-      <div className="shrink-0 border-b border-neutral-200 px-3 py-2.5">
+    <aside className="z-20 flex w-64 shrink-0 flex-col border-r border-neutral-900 bg-[#F7F4E8]">
+      <div className="shrink-0 border-b border-[#DCD6C1] px-3 py-2.5">
         <a
-          href="#/"
+          href="#/plans"
           className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500 hover:text-black"
         >
           ← All Plans
         </a>
-        <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[15px] tracking-tight text-neutral-900">
-          {planName}
+        <p className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[18px] leading-snug text-neutral-900">
+          <span className="bg-[#52E5D8] px-1">{planName}</span>
         </p>
         <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">
           {nodes.length} nodes · {edges.length} links
@@ -146,24 +146,26 @@ export default function MoveLibrary() {
           }}
         />
       </div>
-      <div className="flex h-10 shrink-0 items-center justify-between border-b border-neutral-200 px-3">
+      <div className="flex h-10 shrink-0 items-center justify-between border-b border-[#DCD6C1] px-3">
         <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
           Move Library
         </span>
         <button
-          className="h-6 w-6 border border-neutral-300 font-mono text-[11px] leading-none text-neutral-500 hover:border-neutral-500 hover:text-black"
+          className="h-6 w-6 rounded-full border border-neutral-900 font-mono text-[11px] leading-none text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-[#F3EFE2]"
           onClick={() => setOpen(false)}
           title="Collapse"
         >
           «
         </button>
       </div>
-      <input
-        className="h-10 shrink-0 border-b border-neutral-200 bg-neutral-50 px-3 font-mono text-[11px] text-neutral-900 outline-none placeholder:text-neutral-400"
-        placeholder="Search moves…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+      <div className="shrink-0 border-b border-[#DCD6C1] px-3 py-2">
+        <input
+          className="h-8 w-full rounded-full border border-neutral-900 bg-[#FBF9F0] px-3.5 font-mono text-[11px] text-neutral-900 outline-none placeholder:text-neutral-400"
+          placeholder="Search moves…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
       <div className="flex-1 overflow-y-auto">
         {groups.map(([category, moves]) => (
           // ponytail: native <details> accordion — collapsed by default kills the
@@ -174,7 +176,7 @@ export default function MoveLibrary() {
             open={Boolean(q)}
             className="group"
           >
-            <summary className="sticky top-0 flex cursor-pointer list-none items-center justify-between border-b border-neutral-100 bg-white px-3 py-2 font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500 hover:text-black [&::-webkit-details-marker]:hidden">
+            <summary className="sticky top-0 flex cursor-pointer list-none items-center justify-between border-b border-[#E7E1CE] bg-[#F7F4E8] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500 hover:bg-[#EFEBDC] hover:text-black [&::-webkit-details-marker]:hidden">
               <span>{category}</span>
               <span className="flex items-center gap-2 text-neutral-400">
                 {moves.length}
@@ -192,7 +194,7 @@ export default function MoveLibrary() {
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
                 onClick={() => addAtCenter(move)}
-                className="block w-full cursor-grab px-3 py-1.5 text-left text-[13px] tracking-tight text-neutral-700 hover:bg-neutral-100 hover:text-black active:cursor-grabbing"
+                className="block w-full cursor-grab px-3 py-1.5 text-left text-[13px] tracking-tight text-neutral-700 hover:bg-[#EAE5D3] hover:text-black active:cursor-grabbing"
                 title="Drag onto canvas, or click to add"
               >
                 {move}
@@ -206,7 +208,7 @@ export default function MoveLibrary() {
           </p>
         )}
       </div>
-      <p className="shrink-0 border-t border-neutral-200 px-3 py-2 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">
+      <p className="shrink-0 border-t border-[#DCD6C1] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">
         Drag onto canvas · click to add
       </p>
     </aside>

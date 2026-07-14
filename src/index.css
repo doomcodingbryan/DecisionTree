@@ -2,7 +2,7 @@
 
 body {
   margin: 0;
-  background: #fafafa;
+  background: #f3efe2;
   color: #171717;
   font-family:
     Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -39,17 +39,19 @@ body {
 
 .react-flow__controls {
   box-shadow: none;
-  border: 1px solid #d4d4d4;
+  border: 1px solid #171717;
+  border-radius: 8px;
+  overflow: hidden;
 }
 .react-flow__controls-button {
-  background: #ffffff;
+  background: #fbf9f0;
   border: none;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid #dcd6c1;
   border-radius: 0;
   fill: #171717;
 }
 .react-flow__controls-button:hover {
-  background: #f5f5f5;
+  background: #efebdc;
 }
 
 /* ghost suggestion nodes are unselectable/undraggable, which makes React Flow

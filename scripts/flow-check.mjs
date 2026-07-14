@@ -1,4 +1,4 @@
-// E2E flow check: home → create → edit → notes → ghosts → undo/redo → back → reopen → reload → delete.
+// E2E flow check: landing → plans → edit → notes → ghosts → undo/redo → reopen → reload → delete.
 // Run: npm run build && npx vite preview --port 4173 & then: npx -y playwright install chromium (once), npm i --no-save playwright, node scripts/flow-check.mjs
 import { chromium } from 'playwright';
 import assert from 'node:assert';
@@ -7,8 +7,10 @@ const base = 'http://localhost:4173/';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
 
-// 1. fresh visit → home empty state
+// 1. fresh visit → landing page, then into the empty plans library
 await page.goto(base);
+await page.waitForSelector('text=Try the Sample');
+await page.click('a:text-is("Start Building — Free")');
 await page.waitForSelector('text=No Plans Yet');
 await page.screenshot({ path: 'home-empty.png' });
 
@@ -34,25 +36,42 @@ await page.fill('input[placeholder="Search moves…"]', 'kimura');
 await page.click('aside button:text-is("Kimura")');
 await page.waitForSelector('text=12 nodes');
 
-// 3c. the pick-your-own ghost card: focusing its input drops down the
-// suggestions that didn't fit on the two cards, minus already-mapped children;
+// 3c. hovering a node shows only the pick-your-own card; the AI button
+// reveals the two recommendation cards, minus already-mapped children;
 // an accepted move auto-labels its edge from the target's category
-await page.click('.react-flow__node:has-text("Standing")'); // pans ghosts into view
-await page.waitForSelector('.react-flow__node-ghost');
+await page.click('.react-flow__node:has-text("Standing")'); // hovers + pans ghosts into view
+await page.waitForSelector('input[placeholder="Type a move…"]');
+assert.equal(
+  await page.locator('button[title="Add this move"]').count(),
+  0,
+  'AI cards should stay hidden until the AI button is clicked',
+);
+await page.click('.react-flow__node:has-text("Standing") button:text-is("AI")');
+await page.waitForSelector('button[title="Add this move"]');
+// the pick-your-own card yields while the AI cards are up
+await page.waitForSelector('input[placeholder="Type a move…"]', {
+  state: 'detached',
+});
 assert.equal(
   await page.locator('.react-flow__node-ghost:has-text("Arm Drag")').count(),
   0,
   'already-mapped child should be filtered from suggestions',
 );
+// toggle AI off → hovering brings the pick-your-own card back
+await page.click('.react-flow__node:has-text("Standing") button:text-is("AI")');
+await page.waitForSelector('button[title="Add this move"]', {
+  state: 'detached',
+});
 await page.click('input[placeholder="Type a move…"]');
 await page.waitForSelector('text=Suggested next');
 await page.click('.react-flow__node-ghost button:text-is("Ankle Pick")');
 await page.waitForSelector('text=13 nodes');
 await page.waitForSelector('button:text-is("takedown")'); // auto-labeled chip
 
-// 3d. ghost suggestions: selecting a node shows dashed half-opacity picks;
+// 3d. AI cards: dashed half-opacity picks for the clicked node;
 // ✗ dismisses for the session, ✓ materializes the move
 await page.click('.react-flow__node:has-text("Guard Pull")');
+await page.click('.react-flow__node:has-text("Guard Pull") button:text-is("AI")');
 await page.waitForSelector('.react-flow__node:has-text("Open Guard")'); // ghost
 await page
   .locator('.react-flow__node:has-text("Butterfly Guard") button[title="Dismiss suggestion"]')
@@ -67,8 +86,12 @@ await page
   .click();
 await page.waitForSelector('text=14 nodes'); // ghost became a real move
 
-// 3d2. the third ghost is a pick-your-own card: type a move, Enter adds it
-// (parent stays selected after the previous accept, so the card is visible)
+// 3d2. pick-your-own card: toggle AI off (card yields to AI cards), then
+// type a move — Enter adds it under the still-hovered parent
+await page.click('.react-flow__node:has-text("Guard Pull") button:text-is("AI")');
+await page.waitForSelector('button[title="Add this move"]', {
+  state: 'detached',
+});
 await page.fill('input[placeholder="Type a move…"]', 'Mount');
 await page.keyboard.press('Enter');
 await page.waitForSelector('text=15 nodes');
@@ -116,6 +139,49 @@ await page.waitForSelector('text=14 nodes');
 // 7. unknown tree id → redirected home
 await page.goto(base + '#/t/nope');
 await page.waitForSelector('text=Your Game Plans');
+
+// 7b. folders: modal create → drag onto the folder box → folder page →
+// all-flows page → modal rename → delete keeps the plan
+await page.click('button:text-is("+ New Folder")');
+await page.fill('input[placeholder="e.g. Guard Play"]', 'Guard Play');
+await page.fill('textarea', 'Closed guard attack chains');
+await page.click('button:text-is("Create")');
+await page.waitForSelector('h2:has-text("Guard Play")');
+await page.waitForSelector('text=0 flows');
+await page.dragAndDrop(
+  'li:has-text("Sample Game Plan")',
+  'li:has-text("Guard Play")',
+);
+await page.waitForSelector('text=1 flow'); // filed into the box
+await page.screenshot({ path: 'home-folders.png' });
+
+// folder page shows its name, info, and the filed plan
+await page.click('h2:has-text("Guard Play")');
+await page.waitForSelector('h1:has-text("Guard Play")');
+await page.waitForSelector('text=Closed guard attack chains');
+await page.waitForSelector('li:has-text("Sample Game Plan")');
+await page.screenshot({ path: 'folder-page.png' });
+await page.click('text=← All Plans');
+
+// all-flows page lists every plan, filed or not
+await page.click('a:text-is("All Flows")');
+await page.waitForSelector('h1:has-text("All Flows")');
+await page.waitForSelector('li:has-text("Sample Game Plan")');
+await page.click('text=← All Plans');
+
+// rename via the edit modal
+await page.hover('li:has-text("Guard Play")');
+await page.click('button[title="Edit folder"]');
+await page.fill('input[placeholder="e.g. Guard Play"]', 'Guard Game');
+await page.click('button:text-is("Save")');
+await page.waitForSelector('h2:has-text("Guard Game")');
+
+// delete the folder — its plan returns to unfiled
+page.once('dialog', (d) => d.accept());
+await page.hover('li:has-text("Guard Game")');
+await page.click('button[title="Delete folder"]');
+await page.waitForSelector('h2:has-text("Guard Game")', { state: 'detached' });
+await page.waitForSelector('li:has-text("Sample Game Plan")');
 
 // 8. rename + delete from home
 await page.hover('li:has-text("Sample Game Plan")');

@@ -11,7 +11,6 @@ import '@xyflow/react/dist/style.css';
 import { useEffect, useRef, useState, type DragEvent } from 'react';
 import type { OnNodesChange } from '@xyflow/react';
 import {
-  branchOffset,
   useGraph,
   type GhostNode as GhostNodeType,
   type MoveNode as MoveNodeType,
@@ -38,7 +37,7 @@ export default function Canvas({ treeId }: { treeId: string }) {
 
   useEffect(() => {
     if (exists) openTree(treeId);
-    else window.location.hash = '#/'; // unknown id → back to the library
+    else window.location.hash = '#/plans'; // unknown id → back to the library
   }, [exists, openTree, treeId]);
 
   // ⌘Z / ⇧⌘Z (or Ctrl) — skipped while typing, where the browser's own
@@ -57,12 +56,12 @@ export default function Canvas({ treeId }: { treeId: string }) {
   }, []);
 
   if (activeId !== treeId) {
-    return <div className="h-screen w-screen bg-[#FAFAFA]" />;
+    return <div className="h-screen w-screen bg-[#F3EFE2]" />;
   }
 
   return (
     <ReactFlowProvider>
-      <div className="flex h-screen w-screen bg-[#FAFAFA] text-neutral-900">
+      <div className="flex h-screen w-screen bg-[#F3EFE2] text-neutral-900">
         <MoveLibrary />
         <Flow />
       </div>
@@ -82,11 +81,14 @@ function Flow() {
   const { screenToFlowPosition, getViewport, fitBounds } = useReactFlow();
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  // Ghost suggestions for the hovered node: derived at render time, never
-  // stored — accepting one calls addChild, so the real graph stays clean.
-  // Hovering a ghost keeps its parent anchored; a grace period covers the
-  // pointer's trip across the gap between parent and ghost.
+  // Ghost cards: derived at render time, never stored — accepting one calls
+  // addChild, so the real graph stays clean. Hovering a node offers the
+  // pick-your-own card; the node's AI button toggles its two recommendation
+  // cards. Hovering a ghost keeps its parent anchored; a grace period covers
+  // the pointer's trip across the gap between parent and ghost.
   const [anchorId, setAnchorId] = useState<string | null>(null);
+  const aiFor = useGraph((s) => s.aiFor);
+  const toggleAi = useGraph((s) => s.toggleAi);
   const hoverTimer = useRef<number | undefined>(undefined);
   const hoverEnter = (id: string) => {
     clearTimeout(hoverTimer.current);
@@ -100,84 +102,95 @@ function Flow() {
       setAnchorId(null);
     }, 350);
   };
-  const anchor = nodes.find((n) => n.id === anchorId);
-  let ghostNodes: GhostNodeType[] = [];
+  const hoverAnchor = nodes.find((n) => n.id === anchorId);
+  const aiAnchor = nodes.find((n) => n.id === aiFor);
+  const ghostNodes: GhostNodeType[] = [];
   let ghostEdges: TransitionEdgeType[] = [];
-  if (anchor) {
-    const children = edges.filter((e) => e.source === anchor.id);
-    const taken = new Set(
-      children.map((e) => nodes.find((n) => n.id === e.target)?.data.label),
-    );
-    // 2 recommendation cards + 1 pick-your-own card whose dropdown holds the
-    // rest; deep chains surface submissions first (time to finish)
-    let pool = getSuggestions(anchor.data.label)
-      .map((s) => s.to)
-      .filter((m) => !taken.has(m) && !dismissed.has(`${anchor.id}→${m}`));
-    if (chainDepth(anchor.id, edges) >= 2) {
-      pool = [
-        ...pool.filter((m) => MOVE_CATEGORY[m] === 'Submissions'),
-        ...pool.filter((m) => MOVE_CATEGORY[m] !== 'Submissions'),
-      ];
-    }
-    const picks = pool.slice(0, 2);
-    const more = pool.slice(2, 8);
-    // fan ghosts into the first free slots below the anchor — the natural
-    // slot may already hold an unrelated node
-    const occupied = (p: { x: number; y: number }) =>
-      nodes.some(
-        (n) =>
-          Math.abs(n.position.x - p.x) < 224 &&
-          Math.abs(n.position.y - p.y) < 104,
+  if (hoverAnchor || aiAnchor) {
+    // deep chains surface submissions first (time to finish)
+    const poolFor = (anchor: MoveNodeType) => {
+      const taken = new Set(
+        edges
+          .filter((e) => e.source === anchor.id)
+          .map((e) => nodes.find((n) => n.id === e.target)?.data.label),
       );
-    // nearest free slot: directly below or ±240 on this row, then the next
-    // rows down — keeps ghosts beside their parent on crowded canvases
-    // instead of fanning wide (into the sidebar or offscreen)
-    const placedGhosts: { x: number; y: number }[] = [];
-    const isFree = (p: { x: number; y: number }) =>
-      !occupied(p) && !placedGhosts.some((q) => q.x === p.x && q.y === p.y);
-    const nextFreeSlot = () => {
-      for (let row = 1; row <= 3; row++) {
-        for (let i = 0; i < 3; i++) {
-          const p = {
-            x: anchor.position.x + branchOffset(i),
-            y: anchor.position.y + 160 * row,
-          };
-          if (isFree(p)) {
-            placedGhosts.push(p);
-            return p;
-          }
-        }
+      let pool = getSuggestions(anchor.data.label)
+        .map((s) => s.to)
+        .filter((m) => !taken.has(m) && !dismissed.has(`${anchor.id}→${m}`));
+      if (chainDepth(anchor.id, edges) >= 2) {
+        pool = [
+          ...pool.filter((m) => MOVE_CATEGORY[m] === 'Submissions'),
+          ...pool.filter((m) => MOVE_CATEGORY[m] !== 'Submissions'),
+        ];
       }
-      // fully boxed in: fall back to the widening fan on the first row
-      for (let i = 3; ; i++) {
-        const p = {
-          x: anchor.position.x + branchOffset(i),
-          y: anchor.position.y + 160,
-        };
-        if (isFree(p)) {
-          placedGhosts.push(p);
-          return p;
-        }
-      }
+      return pool;
     };
-    ghostNodes = [...picks, 'custom'].map((label) => ({
-      id: `ghost-${anchor.id}-${label}`,
+    // ghost cards drop straight down from their parent — centered, one row
+    // at a time, until the band is clear of real nodes and other ghosts
+    const placed: { x: number; y: number }[] = [];
+    const blocked = (p: { x: number; y: number }) =>
+      [...nodes.map((n) => n.position), ...placed].some(
+        (q) => Math.abs(q.x - p.x) < 224 && Math.abs(q.y - p.y) < 104,
+      );
+    const dropIn = (parent: MoveNodeType, offsets: number[]) => {
+      const slot = (dx: number, row: number) => ({
+        x: parent.position.x + dx,
+        y: parent.position.y + 160 * row,
+      });
+      let row = 1;
+      while (offsets.some((dx) => blocked(slot(dx, row)))) row++;
+      return offsets.map((dx) => {
+        const p = slot(dx, row);
+        placed.push(p);
+        return p;
+      });
+    };
+    const ghost = (
+      id: string,
+      position: { x: number; y: number },
+      data: GhostNodeType['data'],
+    ): GhostNodeType => ({
+      id,
       type: 'ghost' as const,
-      position: nextFreeSlot(),
-      data:
-        label === 'custom'
-          ? { label: '', parentId: anchor.id, custom: true, suggested: more }
-          : { label, parentId: anchor.id },
+      position,
+      data,
       draggable: false,
       selectable: false,
       // explicit size: ghosts aren't in the store, so React Flow's measured
       // dimensions are never applied back — without this they stay hidden
       width: 208,
       height: 88,
-    }));
+    });
+    // the pick-your-own card yields while the node's AI cards are up
+    if (hoverAnchor && aiAnchor?.id !== hoverAnchor.id) {
+      const [p] = dropIn(hoverAnchor, [0]);
+      ghostNodes.push(
+        ghost(`ghost-${hoverAnchor.id}-custom`, p, {
+          label: '',
+          parentId: hoverAnchor.id,
+          custom: true,
+          suggested: poolFor(hoverAnchor).slice(0, 6),
+        }),
+      );
+    }
+    if (aiAnchor) {
+      const picks = poolFor(aiAnchor).slice(0, 2);
+      if (picks.length) {
+        // symmetric pair centered under the parent
+        const spots = dropIn(aiAnchor, picks.length === 2 ? [-120, 120] : [0]);
+        picks.forEach((label, i) =>
+          ghostNodes.push(
+            ghost(`ghost-${aiAnchor.id}-${label}`, spots[i], {
+              label,
+              parentId: aiAnchor.id,
+            }),
+          ),
+        );
+      }
+    }
     ghostEdges = ghostNodes.map((g) => ({
       id: `ghost-edge-${g.id}`,
-      source: anchor.id,
+      source: g.data.parentId,
       sourceHandle: 'bottom',
       target: g.id,
       targetHandle: 'top',
@@ -261,7 +274,10 @@ function Flow() {
           hoverEnter(node.type === 'ghost' ? node.data.parentId : node.id)
         }
         onNodeMouseLeave={hoverLeave}
-        onPaneClick={() => setAnchorId(null)}
+        onPaneClick={() => {
+          setAnchorId(null);
+          toggleAi(null);
+        }}
         nodes={[...nodes, ...ghostNodes] as (MoveNodeType | GhostNodeType)[]}
         edges={[...edges, ...ghostEdges]}
         // ghosts aren't in the store; applyNodeChanges drops changes for
@@ -274,7 +290,7 @@ function Flow() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         connectionLineType={ConnectionLineType.Bezier}
-        connectionLineStyle={{ stroke: '#4F46E5', strokeWidth: 1.4 }}
+        connectionLineStyle={{ stroke: '#0D9488', strokeWidth: 1.4 }}
         defaultEdgeOptions={defaultEdgeOptions}
         snapToGrid
         snapGrid={[24, 24]}
@@ -287,13 +303,13 @@ function Flow() {
         fitView
         fitViewOptions={{ padding: 0.35 }}
         className="game-plan-flow"
-        style={{ background: '#FAFAFA' }}
+        style={{ background: '#F3EFE2' }}
       >
         <Background
           variant={BackgroundVariant.Dots}
           gap={24}
           size={1.5}
-          color="rgba(0,0,0,0.16)"
+          color="rgba(23,23,23,0.18)"
         />
         <BlueprintFrame />
         <FitOnFirstPaint />
@@ -341,8 +357,8 @@ function BlueprintFrame() {
   // draw through the toolbar
   return (
     <div className="pointer-events-none absolute inset-0 z-0">
-      <div className="absolute left-8 top-8 h-8 w-8 border-l-2 border-t-2 border-neutral-300" />
-      <div className="absolute bottom-8 right-8 h-8 w-8 border-b-2 border-r-2 border-neutral-300" />
+      <div className="absolute left-8 top-8 h-8 w-8 border-l-2 border-t-2 border-[#B7B098]" />
+      <div className="absolute bottom-8 right-8 h-8 w-8 border-b-2 border-r-2 border-[#B7B098]" />
       <div className="absolute right-8 top-20 hidden font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-400 sm:block">
         GAME PLAN / CANVAS
       </div>
@@ -367,22 +383,22 @@ function EmptyState() {
   };
   return (
     <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 px-4 text-center">
-      <div className="border border-neutral-300 bg-white/90 px-6 py-5 backdrop-blur">
+      <div className="border border-neutral-900 bg-[#FBF9F0]/90 px-6 py-5 backdrop-blur">
         <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
           Empty Plan
         </p>
-        <p className="mt-2 text-[24px] tracking-tight text-neutral-900">
+        <p className="mt-2 font-serif text-[24px] tracking-tight text-neutral-900">
           Start mapping your A-game.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <button
-            className="pointer-events-auto h-10 border border-black bg-black px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-white hover:bg-neutral-800"
+            className="pointer-events-auto h-10 rounded-full border border-black bg-black px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-white hover:bg-neutral-800"
             onClick={loadSample}
           >
             Load Sample
           </button>
           <button
-            className="pointer-events-auto h-10 border border-neutral-300 bg-white px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-neutral-900 hover:border-neutral-500 hover:bg-neutral-50"
+            className="pointer-events-auto h-10 rounded-full border border-neutral-900 bg-[#F3EFE2] px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-neutral-900 hover:bg-[#E7E1CD]"
             onClick={add}
           >
             Add Move

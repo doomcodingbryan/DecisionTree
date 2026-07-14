@@ -10,8 +10,8 @@ const portStyle: CSSProperties = {
   width: 10,
   height: 10,
   left: '50%',
-  background: '#FFFFFF',
-  border: '2px solid #737373',
+  background: '#F3EFE2',
+  border: '2px solid #171717',
   borderRadius: '50%',
 };
 
@@ -29,6 +29,8 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
   const renameNode = useGraph((s) => s.renameNode);
   const setNotes = useGraph((s) => s.setNotes);
   const isNew = useGraph((s) => s.lastAddedId === id);
+  const aiActive = useGraph((s) => s.aiFor === id);
+  const toggleAi = useGraph((s) => s.toggleAi);
   const exits = getSuggestions(data.label).length;
 
   const q = query.trim().toLowerCase();
@@ -53,17 +55,18 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
         width: nodeWidth,
         minHeight: 88,
         background: '#FFFFFF',
-        border: selected ? '1px solid #4F46E5' : '1px solid #D4D4D4',
+        border: '1px solid #171717',
+        borderRadius: 10,
         boxShadow: selected
-          ? '0 0 0 1px #4F46E5, 0 0 0 5px rgba(79,70,229,0.12)'
-          : '0 1px 2px rgba(0,0,0,0.04)',
+          ? '0 0 0 1.5px #171717, 0 0 0 6px rgba(82,229,216,0.45)'
+          : '0 1px 2px rgba(0,0,0,0.05)',
       }}
     >
       <div
         className={`flex h-7 items-center justify-between border-b px-2.5 ${
           selected
-            ? 'border-indigo-100 bg-indigo-50'
-            : 'border-neutral-200 bg-neutral-100'
+            ? 'border-neutral-900/25 bg-[#52E5D8] rounded-t-[9px]'
+            : 'border-[#DCD6C1] bg-[#EFEBDC] rounded-t-[9px]'
         }`}
       >
         <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
@@ -76,7 +79,7 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
       <div className="px-3 pb-2.5 pt-2">
         {editing ? (
           <input
-            className="nodrag w-full bg-transparent text-[15px] tracking-tight text-neutral-900 outline-none placeholder:text-neutral-400"
+            className="nodrag w-full bg-transparent font-serif text-[15px] tracking-tight text-neutral-900 outline-none placeholder:text-neutral-400"
             value={query}
             autoFocus
             onFocus={(e) => e.target.select()}
@@ -102,7 +105,7 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
           />
         ) : (
           <span
-            className="block overflow-hidden text-ellipsis whitespace-nowrap text-[15px] tracking-tight text-neutral-900"
+            className="block overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[15px] tracking-tight text-neutral-900"
             onDoubleClick={(e) => {
               e.stopPropagation();
               openEditor();
@@ -132,7 +135,7 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
         ) : (
           <p
             className={`mt-1 whitespace-pre-wrap break-words text-[11px] leading-relaxed ${
-              data.notes ? 'text-neutral-500' : 'text-neutral-300'
+              data.notes ? 'text-neutral-500' : 'text-[#B3AC94]'
             }`}
             onDoubleClick={(e) => {
               e.stopPropagation();
@@ -145,14 +148,14 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
         )}
       </div>
       {editing && suggestions.length > 0 && (
-        <ul className="nodrag nowheel absolute left-2 right-2 top-full z-50 mt-1 max-h-52 overflow-auto border border-neutral-300 bg-white font-mono text-[11px] shadow-xl">
+        <ul className="nodrag nowheel absolute left-2 right-2 top-full z-50 mt-1 max-h-52 overflow-auto border border-neutral-900 bg-[#FBF9F0] font-mono text-[11px] shadow-xl">
           {suggestions.map((move, i) => (
             <li key={move}>
               <button
                 className={`block w-full px-2 py-1 text-left ${
                   i === highlight
                     ? 'bg-neutral-900 text-white'
-                    : 'text-neutral-600 hover:bg-neutral-100 hover:text-black'
+                    : 'text-neutral-600 hover:bg-[#EAE5D3] hover:text-black'
                 }`}
                 // onMouseDown fires before the input's onBlur, so the pick wins
                 onMouseDown={(e) => {
@@ -167,6 +170,18 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
           ))}
         </ul>
       )}
+      {/* node click still fires after this, panning the fresh cards into view */}
+      <button
+        className={`nodrag absolute bottom-1 left-full ml-2 flex h-7 w-9 items-center justify-center rounded-full border border-neutral-900 font-mono text-[10px] tracking-[0.08em] text-neutral-900 transition-opacity ${
+          aiActive
+            ? 'bg-[#52E5D8] opacity-100'
+            : 'bg-[#F3EFE2] opacity-0 hover:bg-[#52E5D8] group-hover:opacity-100'
+        }`}
+        title={aiActive ? 'Hide AI suggestions' : 'AI: suggest next moves'}
+        onClick={() => toggleAi(id)}
+      >
+        AI
+      </button>
       <Handle id="top" type="target" position={Position.Top} style={portStyle} />
       <Handle id="bottom" type="source" position={Position.Bottom} style={portStyle} />
     </div>

@@ -30,9 +30,12 @@ export const branchOffset = (siblings: number) =>
   siblings === 0
     ? 0
     : (siblings % 2 === 1 ? -1 : 1) * Math.ceil(siblings / 2) * 240;
+export type Folder = { name: string; info?: string };
 export type Tree = {
   id: string;
   name: string;
+  // ponytail: a tree points at its folder by name; the list lives in `folders`
+  folder?: string;
   nodes: MoveNode[];
   edges: TransitionEdge[];
   updatedAt: number;
@@ -61,6 +64,11 @@ type GraphState = {
   openTree: (id: string) => void;
   renameTree: (id: string, name: string) => void;
   deleteTree: (id: string) => void;
+  folders: Folder[];
+  createFolder: (name: string, info?: string) => void;
+  updateFolder: (name: string, next: string, info?: string) => void;
+  deleteFolder: (name: string) => void;
+  setTreeFolder: (id: string, folder?: string) => void;
   onNodesChange: (changes: NodeChange<MoveNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<TransitionEdge>[]) => void;
   onConnect: (connection: Connection) => void;
@@ -72,6 +80,9 @@ type GraphState = {
   ) => void;
   dismissed: Set<string>;
   dismissSuggestion: (parentId: string, label: string) => void;
+  // node whose AI recommendation cards are shown (one at a time; null clears)
+  aiFor: string | null;
+  toggleAi: (id: string | null) => void;
   // session-only undo history for the active tree
   past: Snapshot[];
   future: Snapshot[];
@@ -170,6 +181,7 @@ export const useGraph = create<GraphState>()(
             nodes: tree.nodes,
             edges: tree.edges,
             lastAddedId: null,
+            aiFor: null,
             past: [], // history belongs to one tree
             future: [],
           });
@@ -200,6 +212,50 @@ export const useGraph = create<GraphState>()(
                 }
               : { trees },
           );
+        },
+        folders: [],
+        createFolder: (name, info) => {
+          const n = name.trim();
+          if (!n || get().folders.some((f) => f.name === n)) return;
+          set({
+            folders: [
+              ...get().folders,
+              { name: n, info: info?.trim() || undefined },
+            ],
+          });
+        },
+        updateFolder: (name, next, info) => {
+          const n = next.trim();
+          if (!n || get().folders.some((f) => f.name === n && n !== name))
+            return;
+          set({
+            folders: get().folders.map((f) =>
+              f.name === name ? { name: n, info: info?.trim() || undefined } : f,
+            ),
+            trees: Object.fromEntries(
+              Object.entries(get().trees).map(([id, t]): [string, Tree] => [
+                id,
+                t.folder === name ? { ...t, folder: n } : t,
+              ]),
+            ),
+          });
+        },
+        deleteFolder: (name) => {
+          set({
+            folders: get().folders.filter((f) => f.name !== name),
+            trees: Object.fromEntries(
+              Object.entries(get().trees).map(([id, t]): [string, Tree] => [
+                id,
+                t.folder === name ? { ...t, folder: undefined } : t,
+              ]),
+            ),
+          });
+        },
+        // no updatedAt bump — filing a plan isn't an edit, cards keep their order
+        setTreeFolder: (id, folder) => {
+          const tree = get().trees[id];
+          if (!tree) return;
+          set({ trees: { ...get().trees, [id]: { ...tree, folder } } });
         },
         onNodesChange: (changes) => {
           if (changes.some((c) => c.type === 'remove')) snapshot();
@@ -299,6 +355,8 @@ export const useGraph = create<GraphState>()(
           dismissed.add(`${parentId}→${label}`);
           set({ dismissed });
         },
+        aiFor: null,
+        toggleAi: (id) => set({ aiFor: get().aiFor === id ? null : id }),
         clear: () => {
           snapshot();
           commit({ nodes: [], edges: [], lastAddedId: null });
@@ -334,7 +392,18 @@ export const useGraph = create<GraphState>()(
     },
     {
       name: 'bjj-trees',
-      partialize: (s) => ({ trees: s.trees }),
+      version: 1,
+      // v0 folders were bare name strings
+      migrate: (s: unknown) => {
+        const state = s as { folders?: (string | Folder)[] };
+        return {
+          ...state,
+          folders: (state?.folders ?? []).map((f) =>
+            typeof f === 'string' ? { name: f } : f,
+          ),
+        };
+      },
+      partialize: (s) => ({ trees: s.trees, folders: s.folders }),
     },
   ),
 );
