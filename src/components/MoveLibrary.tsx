@@ -95,7 +95,7 @@ export default function MoveLibrary() {
       <div className="z-20 flex w-10 shrink-0 flex-col border-r border-neutral-900 bg-[#F7F4E8]">
         <a
           href={backHref}
-          className="flex h-10 w-full items-center justify-center border-b border-[#DCD6C1] font-mono text-[13px] text-neutral-900 hover:bg-neutral-900 hover:text-[#F3EFE2]"
+          className="flex h-10 w-full items-center justify-center border-b border-neutral-900 font-mono text-[17px] leading-none text-neutral-900 hover:bg-neutral-900 hover:text-[#F3EFE2]"
           title={planFolder ? `Back to ${planFolder}` : 'All plans'}
         >
           ←
@@ -116,7 +116,7 @@ export default function MoveLibrary() {
       <div className="shrink-0 border-b border-[#DCD6C1] px-3 py-2.5">
         <a
           href={backHref}
-          className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500 hover:text-black"
+          className="inline-flex items-center gap-1 rounded-full border border-neutral-900 bg-[#F3EFE2] px-3 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-[#F3EFE2]"
         >
           ← {planFolder ?? 'All Plans'}
         </a>
@@ -141,7 +141,7 @@ export default function MoveLibrary() {
             title="Rename plan"
             onClick={() => setEditingName(true)}
           >
-            <span className="bg-[#52E5D8] px-1">{planName}</span>
+            {planName}
           </button>
         )}
         <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">

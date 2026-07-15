@@ -11,13 +11,24 @@ import {
   type NodeChange,
 } from '@xyflow/react';
 import { edgeLabelFor } from './data/moves';
+import { spliceBetween } from './insert';
 
 export type MoveNode = Node<{ label: string; notes?: string }, 'move'>;
 // ghost = rendered-only suggestion; never stored, so `ghost` on an edge only
 // ever appears on derived ghost edges. `custom` marks the pick-your-own card,
 // whose dropdown offers the `suggested` moves not shown as cards.
 export type GhostNode = Node<
-  { label: string; parentId: string; custom?: boolean; suggested?: string[] },
+  {
+    label: string;
+    parentId: string;
+    custom?: boolean;
+    suggested?: string[];
+    // when set, accepting splices the move between parent and this child
+    // (the parent's current next node) instead of appending a branch
+    insertBeforeId?: string;
+    // a branch-off-the-parent card shown beside a mid-chain node's child
+    newPath?: boolean;
+  },
   'ghost'
 >;
 export type TransitionEdge = Edge<
@@ -75,6 +86,12 @@ type GraphState = {
   addMove: (position: { x: number; y: number }, label?: string) => void;
   addChild: (
     parentId: string,
+    label?: string,
+    position?: { x: number; y: number },
+  ) => void;
+  insertChild: (
+    parentId: string,
+    childId: string,
     label?: string,
     position?: { x: number; y: number },
   ) => void;
@@ -322,6 +339,37 @@ export const useGraph = create<GraphState>()(
                 data: { label: edgeLabelFor(label) },
               } as TransitionEdge,
             ],
+            lastAddedId: id,
+          });
+        },
+        insertChild: (parentId, childId, label = 'New Move', position) => {
+          const parent = get().nodes.find((n) => n.id === parentId);
+          if (!parent) return;
+          snapshot();
+          const id = crypto.randomUUID();
+          commit({
+            nodes: [
+              ...get().nodes,
+              {
+                id,
+                type: 'move',
+                // beside the parent's row by default — the down-slot is taken
+                // by the existing child we're inserting in front of
+                position: position ?? {
+                  x: parent.position.x + 240,
+                  y: parent.position.y + 160,
+                },
+                data: { label },
+              },
+            ],
+            edges: spliceBetween(
+              get().edges,
+              parentId,
+              childId,
+              id,
+              label,
+              crypto.randomUUID(),
+            ),
             lastAddedId: id,
           });
         },

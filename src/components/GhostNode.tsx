@@ -12,15 +12,29 @@ export default function GhostNode({
   positionAbsoluteY,
 }: NodeProps<GhostNodeType>) {
   const addChild = useGraph((s) => s.addChild);
+  const insertChild = useGraph((s) => s.insertChild);
   const dismiss = useGraph((s) => s.dismissSuggestion);
-  const spawn = (label?: string) =>
-    addChild(data.parentId, label, {
-      x: positionAbsoluteX,
-      y: positionAbsoluteY,
-    });
+  const spawn = (label?: string) => {
+    const at = { x: positionAbsoluteX, y: positionAbsoluteY };
+    if (data.insertBeforeId)
+      insertChild(data.parentId, data.insertBeforeId, label, at);
+    else addChild(data.parentId, label, at);
+  };
 
   if (data.custom)
-    return <CustomGhost spawn={spawn} suggested={data.suggested ?? []} />;
+    return (
+      <CustomGhost
+        spawn={spawn}
+        suggested={data.suggested ?? []}
+        heading={
+          data.insertBeforeId
+            ? 'Insert Here'
+            : data.newPath
+              ? 'New Path'
+              : 'Your Move'
+        }
+      />
+    );
 
   return (
     <div
@@ -37,7 +51,7 @@ export default function GhostNode({
     >
       <div className="absolute inset-x-0 top-0 flex h-7 items-center rounded-t-[9px] border-b border-dashed border-[#DCD6C1] bg-[#EFEBDC] px-2.5">
         <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
-          Suggested
+          {data.insertBeforeId ? 'Insert Next' : 'Suggested'}
         </span>
       </div>
       <span
@@ -76,9 +90,11 @@ export default function GhostNode({
 function CustomGhost({
   spawn,
   suggested,
+  heading,
 }: {
   spawn: (label?: string) => void;
   suggested: string[];
+  heading: string;
 }) {
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
@@ -108,7 +124,7 @@ function CustomGhost({
     >
       <div className="absolute inset-x-0 top-0 flex h-7 items-center rounded-t-[9px] border-b border-dashed border-[#DCD6C1] bg-[#EFEBDC] px-2.5">
         <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
-          Your Move
+          {heading}
         </span>
       </div>
       <input

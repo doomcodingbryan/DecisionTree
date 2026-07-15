@@ -1,7 +1,13 @@
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import Canvas from './components/Canvas';
-import Home, { AccountPage, FolderPage } from './components/Home';
+import Home, {
+  AccountPage,
+  BattlePage,
+  DiscoverPage,
+  FolderPage,
+  LibraryPage,
+} from './components/Home';
 import Landing from './components/Landing';
 import Login from './components/Login';
 import { useGraph } from './store';
@@ -47,6 +53,9 @@ function appRoute(hash: string) {
     );
   if (hash.startsWith('#/flows')) return <FolderPage key="all" />;
   if (hash.startsWith('#/plans')) return <Home />;
+  if (hash.startsWith('#/library')) return <LibraryPage />;
+  if (hash.startsWith('#/battle')) return <BattlePage />;
+  if (hash.startsWith('#/discover')) return <DiscoverPage />;
   if (hash.startsWith('#/account')) return <AccountPage />;
   if (hash.startsWith('#/sample')) return <SampleTree />;
   return null;

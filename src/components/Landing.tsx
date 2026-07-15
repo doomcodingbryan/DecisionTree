@@ -8,7 +8,7 @@ const hl = (text: string) => (
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-[#E7E2D0] p-3 sm:p-5">
+    <div className="min-h-screen p-3 sm:p-5">
       <div
         className="relative mx-auto flex min-h-[calc(100vh-2.5rem)] max-w-6xl flex-col overflow-hidden rounded-3xl border border-neutral-900 px-6 py-5 sm:px-10"
         style={{ background: CREAM }}

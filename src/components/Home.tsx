@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useGraph, type Folder, type Tree } from '../store';
+import { MOVE_LIBRARY, ALL_MOVES, MOVE_CATEGORY } from '../data/moves';
 
 const openPlan = (id: string) => {
   window.location.hash = `#/t/${id}`;
@@ -17,6 +18,20 @@ const monoLabel =
 const navToggle =
   'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-neutral-900 font-mono text-[11px] leading-none text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-[#F3EFE2]';
 
+// ponytail: belt rank doubles as the avatar color, stored like gps-user in localStorage
+const BELTS: Record<string, { bg: string; fg: string }> = {
+  White: { bg: '#FBF9F0', fg: '#171717' },
+  Blue: { bg: '#2B5DA8', fg: '#F3EFE2' },
+  Purple: { bg: '#6B4FA0', fg: '#F3EFE2' },
+  Brown: { bg: '#7B4A2D', fg: '#F3EFE2' },
+  Black: { bg: '#171717', fg: '#F3EFE2' },
+};
+// undefined keeps the default teal for users with no belt set
+const beltStyle = () => {
+  const b = BELTS[localStorage.getItem('gps-belt') ?? ''];
+  return b ? { backgroundColor: b.bg, color: b.fg } : undefined;
+};
+
 // sidebar on the outer ground, content in the rounded card beside it
 function Shell({ children }: { children: ReactNode }) {
   const here = window.location.hash;
@@ -29,23 +44,44 @@ function Shell({ children }: { children: ReactNode }) {
     localStorage.setItem('gps-nav', open ? 'closed' : 'open');
     setOpen(!open);
   };
+  // Account isn't a tab — it's reached via the profile card / avatar below
+  const onAccount = here.startsWith('#/account');
   const tabs = [
-    // folder pages count as Plans
+    // folder pages count as Plans. icon = letter badge shown on the collapsed rail
     {
       href: '#/plans',
       label: 'Plans',
+      icon: 'P',
       active: here.startsWith('#/plans') || here.startsWith('#/f/'),
     },
-    { href: '#/flows', label: 'All Flows', active: here.startsWith('#/flows') },
     {
-      href: '#/account',
-      label: 'Account',
-      active: here.startsWith('#/account'),
+      href: '#/flows',
+      label: 'All Flows',
+      icon: 'F',
+      active: here.startsWith('#/flows'),
+    },
+    {
+      href: '#/library',
+      label: 'Library',
+      icon: 'L',
+      active: here.startsWith('#/library'),
+    },
+    {
+      href: '#/battle',
+      label: 'Battle',
+      icon: 'B',
+      active: here.startsWith('#/battle'),
+    },
+    {
+      href: '#/discover',
+      label: 'Discover',
+      icon: 'D',
+      active: here.startsWith('#/discover'),
     },
   ];
 
   return (
-    <div className="flex min-h-screen flex-col gap-4 bg-[#E7E2D0] p-3 text-neutral-900 sm:p-5 md:flex-row md:gap-6">
+    <div className="flex min-h-screen flex-col gap-4 p-3 text-neutral-900 sm:p-5 md:flex-row md:gap-6">
       {!open ? (
         // collapsed rail, echoing the move library's
         <aside className="flex shrink-0 items-center gap-3 md:w-8 md:flex-col md:py-2">
@@ -58,10 +94,28 @@ function Shell({ children }: { children: ReactNode }) {
           >
             Game Plan Studio
           </a>
+          {/* collapsed tabs: letter badges, full label on hover */}
+          {tabs.map((t) => (
+            <a
+              key={t.href}
+              href={t.href}
+              title={t.label}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border font-mono text-[11px] leading-none transition-colors ${
+                t.active
+                  ? 'border-neutral-900 bg-neutral-900 text-[#F3EFE2]'
+                  : 'border-[#B7B098] text-neutral-600 hover:border-neutral-900 hover:text-neutral-900'
+              }`}
+            >
+              {t.icon}
+            </a>
+          ))}
           <a
             href="#/account"
             title={user}
-            className="mt-auto hidden h-8 w-8 items-center justify-center rounded-full border border-neutral-900 bg-[#52E5D8] font-serif text-[15px] text-neutral-900 md:flex"
+            className={`mt-auto hidden h-8 w-8 items-center justify-center rounded-full border font-serif text-[15px] text-neutral-900 md:flex ${
+              onAccount ? 'border-neutral-900 ring-2 ring-neutral-900' : 'border-neutral-900'
+            } bg-[#52E5D8]`}
+            style={beltStyle()}
           >
             {user[0]?.toUpperCase()}
           </a>
@@ -78,8 +132,7 @@ function Shell({ children }: { children: ReactNode }) {
             «
           </button>
         </div>
-        <p className={`hidden px-4 md:mt-10 md:block ${monoLabel}`}>Main</p>
-        <nav className="flex flex-wrap gap-1.5 md:mt-2 md:flex-col">
+        <nav className="flex flex-wrap gap-1.5 md:mt-10 md:flex-col">
           {tabs.map((t) => (
             <a
               key={t.href}
@@ -97,16 +150,23 @@ function Shell({ children }: { children: ReactNode }) {
         {/* user card pinned to the bottom, like the reference */}
         <a
           href="#/account"
-          className="mt-auto hidden items-center gap-2.5 rounded-2xl border border-neutral-900 bg-[#F3EFE2] px-3 py-2.5 transition-colors hover:bg-[#EFEBDC] md:flex"
+          className={`mt-auto hidden items-center gap-2.5 rounded-2xl border border-neutral-900 px-3 py-2.5 transition-colors md:flex ${
+            onAccount ? 'bg-[#EFEBDC] ring-2 ring-neutral-900' : 'bg-[#F3EFE2] hover:bg-[#EFEBDC]'
+          }`}
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-neutral-900 bg-[#52E5D8] font-serif text-[15px]">
+          <span
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-neutral-900 bg-[#52E5D8] font-serif text-[15px]"
+            style={beltStyle()}
+          >
             {user[0]?.toUpperCase()}
           </span>
           <span className="min-w-0">
             <span className="block overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[15px]">
               {user}
             </span>
-            <span className={`block text-[9px] ${monoLabel}`}>On the mat</span>
+            <span className={`block text-[9px] ${monoLabel}`}>
+              {localStorage.getItem('gps-tagline') || 'On the mat'}
+            </span>
           </span>
         </a>
       </aside>
@@ -125,31 +185,84 @@ function Shell({ children }: { children: ReactNode }) {
   );
 }
 
-// #/account — ponytail: "account" is a localStorage display name, no backend
+// #/account — ponytail: "account" is localStorage fields (name/belt/tagline), no backend
 export function AccountPage() {
   const trees = useGraph((s) => s.trees);
   const folders = useGraph((s) => s.folders);
   const [name, setName] = useState(localStorage.getItem('gps-user') ?? '');
+  const [belt, setBelt] = useState(localStorage.getItem('gps-belt') ?? '');
+  const [tagline, setTagline] = useState(
+    localStorage.getItem('gps-tagline') ?? '',
+  );
   const planCount = Object.keys(trees).length;
   const save = () => {
     const n = name.trim();
     if (n) localStorage.setItem('gps-user', n);
   };
+  const saveTagline = () => {
+    const t = tagline.trim();
+    if (t) localStorage.setItem('gps-tagline', t);
+    else localStorage.removeItem('gps-tagline');
+  };
+  const fieldInput =
+    'mt-1 h-10 w-full rounded-full border border-neutral-900 bg-[#FBF9F0] px-4 font-sans text-[14px] normal-case tracking-normal text-neutral-900 outline-none placeholder:text-neutral-400';
 
   return (
     <Shell>
       <p className={monoLabel}>Account</p>
-      <h1 className="mt-1 font-serif text-[40px] tracking-tight">
-        Account Details
-      </h1>
+      <div className="mt-1 flex items-center gap-4">
+        <span
+          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-neutral-900 bg-[#52E5D8] font-serif text-[26px]"
+          style={beltStyle()}
+        >
+          {(name.trim() || 'guest')[0]?.toUpperCase()}
+        </span>
+        <h1 className="font-serif text-[40px] tracking-tight">
+          Account Details
+        </h1>
+      </div>
       <div className="mt-8 max-w-sm">
         <label className={`block ${monoLabel}`}>
           Display Name
           <input
-            className="mt-1 h-10 w-full rounded-full border border-neutral-900 bg-[#FBF9F0] px-4 font-sans text-[14px] normal-case tracking-normal text-neutral-900 outline-none"
+            className={fieldInput}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onBlur={save}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+            }}
+          />
+        </label>
+        <label className={`mt-4 block ${monoLabel}`}>
+          Belt Rank
+          <select
+            className={`${fieldInput} cursor-pointer appearance-none uppercase`}
+            value={belt}
+            onChange={(e) => {
+              // saves immediately so the avatars recolor on this render
+              setBelt(e.target.value);
+              if (e.target.value)
+                localStorage.setItem('gps-belt', e.target.value);
+              else localStorage.removeItem('gps-belt');
+            }}
+          >
+            <option value="">Not set</option>
+            {Object.keys(BELTS).map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={`mt-4 block ${monoLabel}`}>
+          Tagline
+          <input
+            className={fieldInput}
+            placeholder="On the mat"
+            value={tagline}
+            onChange={(e) => setTagline(e.target.value)}
+            onBlur={saveTagline}
             onKeyDown={(e) => {
               if (e.key === 'Enter') e.currentTarget.blur();
             }}
@@ -163,11 +276,124 @@ export function AccountPage() {
           className={`${btnPrimary} mt-8`}
           onClick={() => {
             localStorage.removeItem('gps-user');
+            localStorage.removeItem('gps-belt');
+            localStorage.removeItem('gps-tagline');
             window.location.hash = '#/'; // hashchange makes the router re-read auth
           }}
         >
           Log Out
         </button>
+      </div>
+    </Shell>
+  );
+}
+
+// #/library — browse the move catalog. Category filter + search + type-badged
+// cards, mirroring whitebeltclub.com/technique-library in this app's styling.
+export function LibraryPage() {
+  const [cat, setCat] = useState<string | null>(null);
+  const [q, setQ] = useState('');
+  const needle = q.trim().toLowerCase();
+
+  const source = cat ? MOVE_LIBRARY[cat] : ALL_MOVES;
+  const moves = needle
+    ? source.filter((m) => m.toLowerCase().includes(needle))
+    : source;
+
+  const filterPill = (active: boolean) =>
+    `rounded-full border px-4 py-2 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+      active
+        ? 'border-neutral-900 bg-neutral-900 text-[#F3EFE2]'
+        : 'border-[#B7B098] text-neutral-600 hover:border-neutral-900 hover:text-neutral-900'
+    }`;
+
+  return (
+    <Shell>
+      <p className={monoLabel}>Reference</p>
+      <div className="mt-1 flex flex-wrap items-end justify-between gap-4">
+        <h1 className="font-serif text-[40px] tracking-tight">Move Library</h1>
+        <input
+          className="h-10 w-full max-w-[220px] rounded-full border border-neutral-900 bg-[#FBF9F0] px-4 font-sans text-[14px] text-neutral-900 outline-none placeholder:text-neutral-400"
+          placeholder="Search moves…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </div>
+
+      {/* category filter — their "Select categories" dropdown, as pills w/ counts */}
+      <div className="mt-6 flex flex-wrap gap-2">
+        <button className={filterPill(cat === null)} onClick={() => setCat(null)}>
+          All · {ALL_MOVES.length}
+        </button>
+        {Object.entries(MOVE_LIBRARY).map(([c, list]) => (
+          <button
+            key={c}
+            className={filterPill(cat === c)}
+            onClick={() => setCat(c)}
+          >
+            {c} · {list.length}
+          </button>
+        ))}
+      </div>
+
+      <p className={`mt-6 ${monoLabel}`}>
+        {moves.length} {moves.length === 1 ? 'move' : 'moves'}
+      </p>
+
+      {moves.length === 0 ? (
+        <p className={`mt-8 ${monoLabel}`}>No moves match “{q.trim()}”.</p>
+      ) : (
+        <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {moves.map((m) => (
+            <li
+              key={m}
+              className="rounded-xl border border-[#B7B098] bg-[#FBF9F0] px-4 py-3.5 transition-colors hover:border-neutral-900"
+            >
+              <span className="inline-block rounded-full bg-[#E7E2D0] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-600">
+                {MOVE_CATEGORY[m]}
+              </span>
+              <span className="mt-2 block overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[16px] tracking-tight text-neutral-900">
+                {m}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Shell>
+  );
+}
+
+// #/battle — ponytail: placeholder pending a spec for what "Battle" does
+export function BattlePage() {
+  return (
+    <Shell>
+      <p className={monoLabel}>Train</p>
+      <h1 className="mt-1 font-serif text-[40px] tracking-tight">Battle</h1>
+      <div className="mt-10 border border-neutral-900 bg-[#FBF9F0]/90 px-6 py-10 text-center">
+        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
+          Coming Soon
+        </p>
+        <p className="mt-2 font-serif text-[24px] tracking-tight">
+          Pressure-test your game plan.
+        </p>
+      </div>
+    </Shell>
+  );
+}
+
+// #/discover — ponytail: placeholder pending a spec for what "Discover" does
+export function DiscoverPage() {
+  return (
+    <Shell>
+      <p className={monoLabel}>Explore</p>
+      <h1 className="mt-1 font-serif text-[40px] tracking-tight">Discover</h1>
+      <div className="mt-10 border border-neutral-900 bg-[#FBF9F0]/90 px-6 py-10 text-center">
+        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
+          Coming Soon
+        </p>
+        <p className="mt-2 font-serif text-[24px] tracking-tight">
+          Find game plans to steal from.
+        </p>
       </div>
     </Shell>
   );
@@ -189,10 +415,7 @@ export default function Home() {
     <Shell>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className={monoLabel}>
-            On the mat: {localStorage.getItem('gps-user') ?? 'guest'}
-          </p>
-          <h1 className="mt-1 font-serif text-[40px] tracking-tight">
+          <h1 className="font-serif text-[40px] tracking-tight">
             Your Game Plans
           </h1>
         </div>
@@ -228,8 +451,7 @@ export default function Home() {
       ) : (
         <>
           {folders.length > 0 && (
-            // gap-12: each box's crop marks reach 20px outside it
-            <ul className="mt-12 grid gap-x-12 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {folders.map((f) => (
                 <FolderBox
                   key={f.name}
@@ -287,15 +509,18 @@ export function FolderPage({ name }: { name?: string }) {
 
   return (
     <Shell>
-      <a
-        href="#/plans"
-        className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-500 hover:text-black"
-      >
-        ← All Plans
-      </a>
+      {/* back link only on a specific folder; All Flows is its own top-level tab */}
+      {name && (
+        <a
+          href="#/plans"
+          className="inline-flex items-center gap-1.5 rounded-full border border-neutral-900 bg-[#F3EFE2] px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-[#F3EFE2]"
+        >
+          ← All Plans
+        </a>
+      )}
       <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
         <h1 className="font-serif text-[32px] tracking-tight">
-          <span className="bg-[#52E5D8] px-1">{name ?? 'All Flows'}</span>
+          {name ?? 'All Flows'}
         </h1>
         <button
           className={btnPrimary}
@@ -347,8 +572,7 @@ function FolderBox({
 
   return (
     <li
-      // flex column so a notes-less box still fills its grid row and the
-      // crop marks (anchored to the li) hug the khaki body
+      // flex column so a notes-less box still fills its grid row
       className="group relative flex cursor-pointer flex-col"
       onClick={() =>
         (window.location.hash = `#/f/${encodeURIComponent(folder.name)}`)
@@ -368,15 +592,6 @@ function FolderBox({
         if (id) setTreeFolder(id, folder.name);
       }}
     >
-      {/* crop marks */}
-      <span className="absolute -left-3 -top-3 h-3 w-px bg-neutral-900" />
-      <span className="absolute -left-5 top-0 h-px w-3 bg-neutral-900" />
-      <span className="absolute -right-3 -top-3 h-3 w-px bg-neutral-900" />
-      <span className="absolute -right-5 top-0 h-px w-3 bg-neutral-900" />
-      <span className="absolute -bottom-3 -left-3 h-3 w-px bg-neutral-900" />
-      <span className="absolute -left-5 bottom-0 h-px w-3 bg-neutral-900" />
-      <span className="absolute -bottom-3 -right-3 h-3 w-px bg-neutral-900" />
-      <span className="absolute -right-5 bottom-0 h-px w-3 bg-neutral-900" />
       {/* folder tab */}
       <div
         className={`h-4 w-24 rounded-t-md transition-colors ${

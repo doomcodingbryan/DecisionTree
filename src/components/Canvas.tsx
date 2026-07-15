@@ -132,12 +132,15 @@ function Flow() {
       [...nodes.map((n) => n.position), ...placed].some(
         (q) => Math.abs(q.x - p.x) < 224 && Math.abs(q.y - p.y) < 104,
       );
-    const dropIn = (parent: MoveNodeType, offsets: number[]) => {
+    // startRow 0 flanks the parent's own row (used for mid-chain side cards, so
+    // they read as the clicked node's options); 1 drops below (the leaf case).
+    // No edges render to ghosts, so proximity is the only cue of ownership.
+    const dropIn = (parent: MoveNodeType, offsets: number[], startRow = 1) => {
       const slot = (dx: number, row: number) => ({
         x: parent.position.x + dx,
         y: parent.position.y + 160 * row,
       });
-      let row = 1;
+      let row = startRow;
       while (offsets.some((dx) => blocked(slot(dx, row)))) row++;
       return offsets.map((dx) => {
         const p = slot(dx, row);
@@ -161,28 +164,68 @@ function Flow() {
       width: 208,
       height: 88,
     });
+    // a linear "next node" to insert in front of — only when the anchor has
+    // exactly one child (a fork has no single next node to splice into). Its
+    // ghosts land beside the parent instead of dropping past the whole chain.
+    const nextNodeOf = (anchor: MoveNodeType) => {
+      const outs = edges.filter((e) => e.source === anchor.id);
+      return outs.length === 1 ? outs[0].target : null;
+    };
     // the pick-your-own card yields while the node's AI cards are up
     if (hoverAnchor && aiAnchor?.id !== hoverAnchor.id) {
-      const [p] = dropIn(hoverAnchor, [0]);
-      ghostNodes.push(
-        ghost(`ghost-${hoverAnchor.id}-custom`, p, {
-          label: '',
-          parentId: hoverAnchor.id,
-          custom: true,
-          suggested: poolFor(hoverAnchor).slice(0, 6),
-        }),
-      );
+      const insertBeforeId = nextNodeOf(hoverAnchor);
+      const suggested = poolFor(hoverAnchor).slice(0, 6);
+      if (insertBeforeId) {
+        // mid-chain: offer both — insert between, or branch a separate path,
+        // one card either side of the clicked node
+        const [ins, br] = dropIn(hoverAnchor, [-240, 240], 0);
+        ghostNodes.push(
+          ghost(`ghost-${hoverAnchor.id}-custom-insert`, ins, {
+            label: '',
+            parentId: hoverAnchor.id,
+            custom: true,
+            suggested,
+            insertBeforeId,
+          }),
+          ghost(`ghost-${hoverAnchor.id}-custom-branch`, br, {
+            label: '',
+            parentId: hoverAnchor.id,
+            custom: true,
+            suggested,
+            newPath: true,
+          }),
+        );
+      } else {
+        const [p] = dropIn(hoverAnchor, [0]);
+        ghostNodes.push(
+          ghost(`ghost-${hoverAnchor.id}-custom`, p, {
+            label: '',
+            parentId: hoverAnchor.id,
+            custom: true,
+            suggested,
+          }),
+        );
+      }
     }
     if (aiAnchor) {
       const picks = poolFor(aiAnchor).slice(0, 2);
       if (picks.length) {
-        // symmetric pair centered under the parent
-        const spots = dropIn(aiAnchor, picks.length === 2 ? [-120, 120] : [0]);
+        const insertBeforeId = nextNodeOf(aiAnchor);
+        // insert → beside the taken down-slot; branch → centered pair below
+        const offsets = insertBeforeId
+          ? picks.length === 2
+            ? [240, -240]
+            : [240]
+          : picks.length === 2
+            ? [-120, 120]
+            : [0];
+        const spots = dropIn(aiAnchor, offsets, insertBeforeId ? 0 : 1);
         picks.forEach((label, i) =>
           ghostNodes.push(
             ghost(`ghost-${aiAnchor.id}-${label}`, spots[i], {
               label,
               parentId: aiAnchor.id,
+              ...(insertBeforeId ? { insertBeforeId } : {}),
             }),
           ),
         );
