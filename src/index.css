@@ -13,6 +13,22 @@ body {
     Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
+/* text selection in the brand highlight teal */
+::selection {
+  background: #52e5d8;
+  color: #171717;
+}
+
+/* keyboard focus ring on interactive controls; inline text editors keep
+   their bare look (a ring would break the type-in-place illusion) */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #0d9488;
+  outline-offset: 2px;
+}
+
 .game-plan-flow::before {
   content: '';
   position: absolute;
@@ -77,4 +93,18 @@ body {
 }
 .animate-pop {
   animation: node-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* typewriter caret: hard on/off blink, no fade */
+@keyframes caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+.animate-caret {
+  animation: caret-blink 1.06s step-end infinite;
 }

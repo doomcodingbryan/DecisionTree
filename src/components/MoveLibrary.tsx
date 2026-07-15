@@ -15,6 +15,16 @@ export default function MoveLibrary() {
   const planName = useGraph(
     (s) => (s.activeId ? s.trees[s.activeId]?.name : undefined) ?? 'Untitled Plan',
   );
+  const activeId = useGraph((s) => s.activeId);
+  const renameTree = useGraph((s) => s.renameTree);
+  const [editingName, setEditingName] = useState(false);
+  // back where you came from: the plan's folder page, or the plans list
+  const planFolder = useGraph((s) =>
+    s.activeId ? s.trees[s.activeId]?.folder : undefined,
+  );
+  const backHref = planFolder
+    ? `#/f/${encodeURIComponent(planFolder)}`
+    : '#/plans';
   const undo = useGraph((s) => s.undo);
   const redo = useGraph((s) => s.redo);
   const canUndo = useGraph((s) => s.past.length > 0);
@@ -32,7 +42,10 @@ export default function MoveLibrary() {
     );
     const a = Object.assign(document.createElement('a'), {
       href: url,
-      download: 'bjj-graph.json',
+      download: `${
+        planName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') ||
+        'plan'
+      }.json`,
     });
     a.click();
     URL.revokeObjectURL(url);
@@ -81,9 +94,9 @@ export default function MoveLibrary() {
     return (
       <div className="z-20 flex w-10 shrink-0 flex-col border-r border-neutral-900 bg-[#F7F4E8]">
         <a
-          href="#/plans"
+          href={backHref}
           className="flex h-10 w-full items-center justify-center border-b border-[#DCD6C1] font-mono text-[13px] text-neutral-900 hover:bg-neutral-900 hover:text-[#F3EFE2]"
-          title="All plans"
+          title={planFolder ? `Back to ${planFolder}` : 'All plans'}
         >
           ←
         </a>
@@ -102,14 +115,35 @@ export default function MoveLibrary() {
     <aside className="z-20 flex w-64 shrink-0 flex-col border-r border-neutral-900 bg-[#F7F4E8]">
       <div className="shrink-0 border-b border-[#DCD6C1] px-3 py-2.5">
         <a
-          href="#/plans"
+          href={backHref}
           className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500 hover:text-black"
         >
-          ← All Plans
+          ← {planFolder ?? 'All Plans'}
         </a>
-        <p className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[18px] leading-snug text-neutral-900">
-          <span className="bg-[#52E5D8] px-1">{planName}</span>
-        </p>
+        {editingName ? (
+          <input
+            className="mt-0.5 w-full bg-transparent font-serif text-[18px] leading-snug text-neutral-900 outline-none"
+            defaultValue={planName}
+            autoFocus
+            onFocus={(e) => e.target.select()}
+            onBlur={(e) => {
+              if (activeId) renameTree(activeId, e.target.value.trim() || planName);
+              setEditingName(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Escape') setEditingName(false);
+            }}
+          />
+        ) : (
+          <button
+            className="mt-0.5 block max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-left font-serif text-[18px] leading-snug text-neutral-900"
+            title="Rename plan"
+            onClick={() => setEditingName(true)}
+          >
+            <span className="bg-[#52E5D8] px-1">{planName}</span>
+          </button>
+        )}
         <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">
           {nodes.length} nodes · {edges.length} links
         </p>

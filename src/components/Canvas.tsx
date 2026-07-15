@@ -392,13 +392,13 @@ function EmptyState() {
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <button
-            className="pointer-events-auto h-10 rounded-full border border-black bg-black px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-white hover:bg-neutral-800"
+            className="pointer-events-auto h-10 rounded-full border border-neutral-900 bg-neutral-900 px-4 font-mono text-[11px] uppercase tracking-[0.12em] text-[#F3EFE2] hover:bg-neutral-700"
             onClick={loadSample}
           >
             Load Sample
           </button>
           <button
-            className="pointer-events-auto h-10 rounded-full border border-neutral-900 bg-[#F3EFE2] px-4 font-mono text-[11px] uppercase tracking-[0.16em] text-neutral-900 hover:bg-[#E7E1CD]"
+            className="pointer-events-auto h-10 rounded-full border border-neutral-900 bg-[#F3EFE2] px-4 font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-900 hover:bg-[#E7E1CD]"
             onClick={add}
           >
             Add Move

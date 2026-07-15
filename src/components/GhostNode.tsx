@@ -58,7 +58,7 @@ export default function GhostNode({
           ✗
         </button>
         <button
-          className="nodrag flex h-6 w-6 items-center justify-center rounded-full border border-black bg-black font-mono text-[11px] leading-none text-white hover:bg-neutral-800"
+          className="nodrag flex h-6 w-6 items-center justify-center rounded-full border border-neutral-900 bg-neutral-900 font-mono text-[11px] leading-none text-[#F3EFE2] hover:bg-neutral-700"
           title="Add this move"
           onClick={(e) => {
             e.stopPropagation();

@@ -1,20 +1,12 @@
-import { useGraph } from '../store';
-import { sampleEdges, sampleNodes } from '../data/sampleGraph';
-
 const CREAM = '#F3EFE2';
 const pill =
-  'rounded-full border border-neutral-900 px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-[#F3EFE2]';
+  'rounded-full border border-neutral-900 px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-[#F3EFE2]';
 
 const hl = (text: string) => (
   <mark className="bg-[#52E5D8] px-1 text-neutral-900">{text}</mark>
 );
 
 export default function Landing() {
-  const createTree = useGraph((s) => s.createTree);
-  const trySample = () => {
-    window.location.hash = `#/t/${createTree('Sample Game Plan', sampleNodes, sampleEdges)}`;
-  };
-
   return (
     <div className="min-h-screen bg-[#E7E2D0] p-3 sm:p-5">
       <div
@@ -28,17 +20,14 @@ export default function Landing() {
             Studio
           </div>
           <nav className="flex flex-wrap gap-2">
-            <a className={`${pill} bg-white`} href="#/">
-              Home
-            </a>
             <a className={pill} href="#/plans">
               Plans
             </a>
-            <button className={pill} onClick={trySample}>
+            <a className={pill} href="#/sample">
               Sample
-            </button>
+            </a>
             <a
-              className="rounded-full border border-neutral-900 bg-neutral-900 px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-[#F3EFE2] hover:bg-neutral-700"
+              className="rounded-full border border-neutral-900 bg-neutral-900 px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.12em] text-[#F3EFE2] hover:bg-neutral-700"
               href="#/plans"
             >
               Start
@@ -50,7 +39,7 @@ export default function Landing() {
           <div>
             <h1 className="max-w-xl font-serif text-[40px] leading-[1.08] text-neutral-900 sm:text-[56px]">
               The {hl('Flowchart Builder')} for Your Jiu-Jitsu {hl('A-Game')}
-              <span className="ml-1 inline-block h-[0.85em] w-[3px] translate-y-[0.1em] animate-pulse bg-blue-600" />
+              <span className="ml-1 inline-block h-[0.85em] w-[3px] translate-y-[0.1em] animate-caret bg-[#0D9488]" />
             </h1>
 
             <div className="relative mt-10 max-w-md">
@@ -78,17 +67,19 @@ export default function Landing() {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <a
-                className="rounded-full border border-neutral-900 bg-neutral-900 px-6 py-2.5 font-mono text-[12px] uppercase tracking-[0.08em] text-[#F3EFE2] hover:bg-neutral-700"
+                className="rounded-full border border-neutral-900 bg-neutral-900 px-6 py-2.5 font-mono text-[12px] uppercase tracking-[0.12em] text-[#F3EFE2] hover:bg-neutral-700"
                 href="#/plans"
               >
-                Start Building — Free
+                {localStorage.getItem('gps-user')
+                  ? 'Open Your Studio'
+                  : 'Start Building — Free'}
               </a>
-              <button
-                className="rounded-full border border-neutral-900 px-6 py-2.5 font-mono text-[12px] uppercase tracking-[0.08em] text-neutral-900 hover:bg-neutral-900 hover:text-[#F3EFE2]"
-                onClick={trySample}
+              <a
+                className="rounded-full border border-neutral-900 px-6 py-2.5 font-mono text-[12px] uppercase tracking-[0.12em] text-neutral-900 hover:bg-neutral-900 hover:text-[#F3EFE2]"
+                href="#/sample"
               >
                 Try the Sample
-              </button>
+              </a>
             </div>
           </div>
 

@@ -172,7 +172,7 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
       )}
       {/* node click still fires after this, panning the fresh cards into view */}
       <button
-        className={`nodrag absolute bottom-1 left-full ml-2 flex h-7 w-9 items-center justify-center rounded-full border border-neutral-900 font-mono text-[10px] tracking-[0.08em] text-neutral-900 transition-opacity ${
+        className={`nodrag absolute bottom-1 left-full ml-2 flex h-7 w-9 items-center justify-center rounded-full border border-neutral-900 font-mono text-[10px] tracking-[0.12em] text-neutral-900 transition-opacity ${
           aiActive
             ? 'bg-[#52E5D8] opacity-100'
             : 'bg-[#F3EFE2] opacity-0 hover:bg-[#52E5D8] group-hover:opacity-100'
