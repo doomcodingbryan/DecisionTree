@@ -136,9 +136,7 @@ function Shell({ children }: { children: ReactNode }) {
           <a
             href="#/account"
             title={user}
-            className={`mt-auto hidden h-8 w-8 items-center justify-center rounded-full border font-serif text-[15px] text-neutral-900 md:flex ${
-              onAccount ? 'border-neutral-900 ring-2 ring-neutral-900' : 'border-neutral-900'
-            } bg-[#52E5D8]`}
+            className="mt-auto hidden h-8 w-8 items-center justify-center rounded-full border border-neutral-900 bg-[#52E5D8] font-serif text-[15px] text-neutral-900 md:flex"
             style={beltStyle()}
           >
             {user[0]?.toUpperCase()}
@@ -175,7 +173,7 @@ function Shell({ children }: { children: ReactNode }) {
         <a
           href="#/account"
           className={`mt-auto hidden items-center gap-2.5 rounded-2xl border border-neutral-900 px-3 py-2.5 transition-colors md:flex ${
-            onAccount ? 'bg-[#EFEBDC] ring-2 ring-neutral-900' : 'bg-[#F3EFE2] hover:bg-[#EFEBDC]'
+            onAccount ? 'bg-[#EFEBDC]' : 'bg-[#F3EFE2] hover:bg-[#EFEBDC]'
           }`}
         >
           <span
