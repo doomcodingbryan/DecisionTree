@@ -75,13 +75,11 @@ function Shell({ children }: { children: ReactNode }) {
       href: '#/plans',
       label: 'Plans',
       icon: 'P',
-      active: here.startsWith('#/plans') || here.startsWith('#/f/'),
-    },
-    {
-      href: '#/flows',
-      label: 'All Flows',
-      icon: 'F',
-      active: here.startsWith('#/flows'),
+      // All Plans (#/flows) and folder pages are sub-views of Plans
+      active:
+        here.startsWith('#/plans') ||
+        here.startsWith('#/flows') ||
+        here.startsWith('#/f/'),
     },
     {
       href: '#/library',
@@ -136,7 +134,7 @@ function Shell({ children }: { children: ReactNode }) {
           <a
             href="#/account"
             title={user}
-            className="mt-auto hidden h-8 w-8 items-center justify-center rounded-full border border-neutral-900 bg-[#52E5D8] font-serif text-[15px] text-neutral-900 md:flex"
+            className="mt-auto flex h-8 w-8 items-center justify-center rounded-full border border-neutral-900 bg-[#52E5D8] font-serif text-[15px] text-neutral-900"
             style={beltStyle()}
           >
             {user[0]?.toUpperCase()}
@@ -172,7 +170,7 @@ function Shell({ children }: { children: ReactNode }) {
         {/* user card pinned to the bottom, like the reference */}
         <a
           href="#/account"
-          className={`mt-auto hidden items-center gap-2.5 rounded-2xl border border-neutral-900 px-3 py-2.5 transition-colors md:flex ${
+          className={`mt-auto flex items-center gap-2.5 rounded-2xl border border-neutral-900 px-3 py-2.5 transition-colors ${
             onAccount ? 'bg-[#EFEBDC]' : 'bg-[#F3EFE2] hover:bg-[#EFEBDC]'
           }`}
         >
@@ -716,7 +714,7 @@ export function MoveVideoModal({
 }
 
 // #/battle — local head-to-head, two modes. Lobby: challenge a built-in
-// grappler ("someone else"). My Flows: spar two of your own plans. No backend,
+// grappler ("someone else"). My Plans: spar two of your own plans. No backend,
 // so the "lobby" is a fixed roster of characters, each backed by a Discover flow.
 const rivalTree = (p: Preset, name: string): Tree => ({
   id: `__preset_${p.name}`,
@@ -936,7 +934,7 @@ export function BattlePage() {
 
           <div className="mt-6 flex gap-1.5">
             {modePill('lobby', 'Lobby')}
-            {modePill('flows', 'My Flows')}
+            {modePill('flows', 'My Plans')}
           </div>
           <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-neutral-600">
             {modeCaption}
@@ -1228,6 +1226,28 @@ export function DiscoverPage() {
   );
 }
 
+// Folders vs. flat "All Plans" is a sub-view of Plans, not a separate nav tab.
+// Both link to existing routes (#/plans, #/flows); active state reads the hash.
+function PlansViewToggle() {
+  const all = window.location.hash.startsWith('#/flows');
+  const pill = (active: boolean) =>
+    `rounded-full border px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors ${
+      active
+        ? 'border-neutral-900 bg-neutral-900 text-[#F3EFE2]'
+        : 'border-[#B7B098] text-neutral-600 hover:border-neutral-900 hover:text-neutral-900'
+    }`;
+  return (
+    <div className="flex gap-1.5">
+      <a href="#/plans" className={pill(!all)}>
+        Folders
+      </a>
+      <a href="#/flows" className={pill(all)}>
+        All Plans
+      </a>
+    </div>
+  );
+}
+
 export default function Home() {
   const trees = useGraph((s) => s.trees);
   const folders = useGraph((s) => s.folders);
@@ -1288,6 +1308,9 @@ export default function Home() {
             }}
           />
         </div>
+      </div>
+      <div className="mt-5">
+        <PlansViewToggle />
       </div>
       {plans.length === 0 && folders.length === 0 ? (
         <div className="mt-16 border border-neutral-900 bg-[#FBF9F0]/90 px-6 py-10 text-center">
@@ -1370,18 +1393,20 @@ export function FolderPage({ name }: { name?: string }) {
 
   return (
     <Shell>
-      {/* back link only on a specific folder; All Flows is its own top-level tab */}
-      {name && (
+      {/* a specific folder gets a back link; the flat all-plans view gets the toggle */}
+      {name ? (
         <a
           href="#/plans"
           className="inline-flex items-center gap-1.5 rounded-full border border-neutral-900 bg-[#F3EFE2] px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-[#F3EFE2]"
         >
           ← All Plans
         </a>
+      ) : (
+        <PlansViewToggle />
       )}
       <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
         <h1 className="font-serif text-[32px] tracking-tight">
-          {name ?? 'All Flows'}
+          {name ?? 'All Plans'}
         </h1>
         <button
           className={btnPrimary}
@@ -1400,7 +1425,7 @@ export function FolderPage({ name }: { name?: string }) {
         </p>
       )}
       <p className={`mt-2 ${monoLabel}`}>
-        {plans.length} {plans.length === 1 ? 'flow' : 'flows'}
+        {plans.length} {plans.length === 1 ? 'plan' : 'plans'}
       </p>
       {plans.length === 0 ? (
         <p className={`mt-10 ${monoLabel}`}>
@@ -1498,14 +1523,14 @@ function FolderBox({
           </p>
         )}
         <p className={`mt-2 ${monoLabel}`}>
-          {count} {count === 1 ? 'flow' : 'flows'} · drag to file
+          {count} {count === 1 ? 'plan' : 'plans'} · drag to file
         </p>
       </div>
       {confirming && (
         <ConfirmModal
           title="Delete folder?"
           body={`“${folder.name}” will be removed. Its ${count} ${
-            count === 1 ? 'flow is' : 'flows are'
+            count === 1 ? 'plan is' : 'plans are'
           } kept and moved to Unfiled.`}
           onConfirm={() => deleteFolder(folder.name)}
           onClose={() => setConfirming(false)}
