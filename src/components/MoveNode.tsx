@@ -39,6 +39,9 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
   const [videos, setVideos] = useState(getVideos);
   const [watching, setWatching] = useState(false);
   const videoId = videos[data.label];
+  // favorites live in the store, so the heart stays in sync with the sidebar
+  const fav = useGraph((s) => s.favorites.includes(data.label));
+  const toggleFavorite = useGraph((s) => s.toggleFavorite);
 
   const q = query.trim().toLowerCase();
   const suggestions = (
@@ -83,6 +86,21 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
           <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-400">
             {exits} exits
           </span>
+          {/* solid heart when favorited, hover-revealed otherwise */}
+          <button
+            className={`nodrag text-[11px] leading-none transition-opacity ${
+              fav
+                ? 'text-red-500 opacity-100'
+                : 'text-neutral-400 opacity-0 hover:text-red-500 group-hover:opacity-100'
+            }`}
+            title={fav ? 'Unfavorite this move' : 'Favorite this move'}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavorite(data.label);
+            }}
+          >
+            {fav ? '♥' : '♡'}
+          </button>
           {/* solid when a video is attached; a hover-revealed attach affordance otherwise */}
           <button
             className={`nodrag font-mono text-[10px] leading-none transition-opacity ${

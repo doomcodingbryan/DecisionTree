@@ -13,7 +13,6 @@ import {
   type FlowStats,
   type Match,
 } from '../battle';
-import { sampleEdges, sampleNodes } from '../data/sampleGraph';
 import { PRESETS, type Preset } from '../data/presets';
 import { getVideos, parseYouTubeId, saveVideo, youtubeSearch } from '../video';
 
@@ -98,8 +97,9 @@ function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col gap-4 p-3 text-neutral-900 sm:p-5 md:flex-row md:gap-6">
       {!open ? (
-        // collapsed rail, echoing the move library's
-        <aside className="flex shrink-0 items-center gap-3 md:w-8 md:flex-col md:py-2">
+        // collapsed rail, echoing the move library's. sticky + viewport height
+        // so mt-auto pins the account avatar to the screen bottom, not the page's
+        <aside className="flex shrink-0 items-center gap-3 md:sticky md:top-5 md:h-[calc(100vh-2.5rem)] md:w-8 md:flex-col md:self-start md:overflow-y-auto md:py-2">
           <button className={navToggle} onClick={toggle} title="Expand sidebar">
             »
           </button>
@@ -136,7 +136,7 @@ function Shell({ children }: { children: ReactNode }) {
           </a>
         </aside>
       ) : (
-      <aside className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-3 md:w-56 md:flex-col md:flex-nowrap md:items-stretch md:py-2">
+      <aside className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-3 md:sticky md:top-5 md:h-[calc(100vh-2.5rem)] md:w-56 md:flex-col md:flex-nowrap md:items-stretch md:self-start md:overflow-y-auto md:py-2">
         <div className="flex flex-1 items-start justify-between gap-2 md:flex-none md:px-2">
           <a href="#/" className="font-serif text-[22px] leading-[1.05]">
             Game Plan
@@ -303,23 +303,69 @@ export function AccountPage() {
   );
 }
 
-// #/library — whitebeltclub-style catalog: top filters, a grid or list of
-// category-badged techniques, each opening a video panel.
+// per-category badge color, muted for the paper theme (blue/purple echo the belts)
+const CATEGORY_COLOR: Record<string, string> = {
+  Positions: 'bg-[#E4E7EA] text-[#41505C]',
+  Guards: 'bg-[#DBE6F1] text-[#2B5DA8]',
+  Passes: 'bg-[#F1E4D2] text-[#94611F]',
+  Sweeps: 'bg-[#DCEAD8] text-[#3F6B4A]',
+  Submissions: 'bg-[#E7DEF1] text-[#6B4FA0]',
+  Takedowns: 'bg-[#E1DDF0] text-[#4A3F8A]',
+  Escapes: 'bg-[#D3ECE8] text-[#1F7A6E]',
+};
+const catBadge = (m: string) => (
+  <span
+    className={`inline-block rounded-full px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] ${
+      CATEGORY_COLOR[MOVE_CATEGORY[m]] ?? 'bg-[#E7E2D0] text-neutral-600'
+    }`}
+  >
+    {MOVE_CATEGORY[m]}
+  </span>
+);
+
+// #/library — whitebeltclub-style catalog: a sortable technique table (or a
+// grid), category-badged, each row opening a video reference.
 export function LibraryPage() {
   const [cat, setCat] = useState<string | null>(null);
   const [q, setQ] = useState('');
-  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [view, setView] = useState<'grid' | 'table'>('table');
+  const [onlyFavs, setOnlyFavs] = useState(false);
+  const [sort, setSort] = useState<{ key: 'name' | 'cat'; dir: 1 | -1 } | null>(
+    null,
+  );
   const [selected, setSelected] = useState<string | null>(null);
   const [videos, setVideos] = useState<Record<string, string>>(() => getVideos());
+  const favs = useGraph((s) => s.favorites);
+  const toggleFavorite = useGraph((s) => s.toggleFavorite);
+  const favSet = new Set(favs);
   const needle = q.trim().toLowerCase();
 
   const source = cat ? MOVE_LIBRARY[cat] : ALL_MOVES;
-  const moves = needle ? source.filter((m) => moveMatches(m, needle)) : source;
+  let moves = needle ? source.filter((m) => moveMatches(m, needle)) : source;
+  if (onlyFavs) moves = moves.filter((m) => favSet.has(m));
+
+  // sort is opt-in; default keeps the curated category-grouped order
+  const catOrder = Object.keys(MOVE_LIBRARY);
+  const rows = sort
+    ? [...moves].sort((a, b) =>
+        sort.key === 'name'
+          ? a.localeCompare(b) * sort.dir
+          : ((catOrder.indexOf(MOVE_CATEGORY[a]) -
+              catOrder.indexOf(MOVE_CATEGORY[b])) ||
+              a.localeCompare(b)) * sort.dir,
+      )
+    : moves;
 
   const attach = (move: string, id: string | null) => {
     saveVideo(move, id);
     setVideos(getVideos());
   };
+  const clickSort = (key: 'name' | 'cat') =>
+    setSort((s) =>
+      s?.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 },
+    );
+  const arrow = (key: 'name' | 'cat') =>
+    sort?.key === key ? (sort.dir === 1 ? '↑' : '↓') : '↕';
 
   const filterPill = (active: boolean) =>
     `rounded-full border px-4 py-2 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
@@ -333,11 +379,11 @@ export function LibraryPage() {
         ? 'border-neutral-900 bg-neutral-900 text-[#F3EFE2]'
         : 'border-[#B7B098] text-neutral-500 hover:border-neutral-900'
     }`;
-  const badge = (m: string) => (
-    <span className="inline-block rounded-full bg-[#E7E2D0] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-600">
-      {MOVE_CATEGORY[m]}
-    </span>
-  );
+  // shared column template so header and rows stay aligned
+  const cols = 'grid grid-cols-[1fr_128px_92px_32px] items-center gap-3';
+  const headCell =
+    'font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500';
+  const flip = toggleFavorite;
 
   return (
     <Shell>
@@ -361,34 +407,44 @@ export function LibraryPage() {
             {c} · {list.length}
           </button>
         ))}
+        <button
+          className={filterPill(onlyFavs)}
+          onClick={() => setOnlyFavs((v) => !v)}
+        >
+          ♥ Favorites · {favs.length}
+        </button>
       </div>
 
       <div className="mt-6 flex items-center justify-between">
         <p className={monoLabel}>
-          {moves.length} {moves.length === 1 ? 'move' : 'moves'}
+          {rows.length} {rows.length === 1 ? 'move' : 'moves'}
         </p>
         <div className="flex gap-1.5">
+          <button className={viewBtn(view === 'table')} onClick={() => setView('table')}>
+            Table
+          </button>
           <button className={viewBtn(view === 'grid')} onClick={() => setView('grid')}>
             Grid
-          </button>
-          <button className={viewBtn(view === 'list')} onClick={() => setView('list')}>
-            List
           </button>
         </div>
       </div>
 
-      {moves.length === 0 ? (
-        <p className={`mt-8 ${monoLabel}`}>No moves match “{q.trim()}”.</p>
+      {rows.length === 0 ? (
+        <p className={`mt-8 ${monoLabel}`}>
+          {onlyFavs && !needle
+            ? 'No favorites yet — tap the heart on a move to save it here.'
+            : `No moves match “${q.trim()}”.`}
+        </p>
       ) : view === 'grid' ? (
         <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {moves.map((m) => (
+          {rows.map((m) => (
             <li key={m}>
               <button
                 className="w-full rounded-xl border border-[#B7B098] bg-[#FBF9F0] px-4 py-3.5 text-left transition-colors hover:border-neutral-900"
                 onClick={() => setSelected(m)}
               >
                 <span className="flex items-center justify-between gap-2">
-                  {badge(m)}
+                  {catBadge(m)}
                   {videos[m] && (
                     <span className="font-mono text-[11px] leading-none text-neutral-500">
                       ▶
@@ -403,29 +459,75 @@ export function LibraryPage() {
           ))}
         </ul>
       ) : (
-        <ul className="mt-3 border-y border-[#DCD6C1]">
-          {moves.map((m) => (
-            <li key={m} className="border-b border-[#DCD6C1] last:border-0">
+        <div className="mt-4 overflow-x-auto">
+          <div className="min-w-[500px]">
+            {/* header row shares `cols` with the data rows so columns line up */}
+            <div className={`${cols} border-b border-neutral-900 px-2 pb-2`}>
               <button
-                className="flex w-full items-center gap-3 px-1 py-2.5 text-left transition-colors hover:bg-[#FBF9F0]"
-                onClick={() => setSelected(m)}
+                className={`${headCell} flex items-center gap-1 text-left hover:text-neutral-900`}
+                onClick={() => clickSort('name')}
               >
-                <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[15px] text-neutral-900">
-                  {m}
+                Technique <span className="text-neutral-400">{arrow('name')}</span>
+              </button>
+              <button
+                className={`${headCell} flex items-center gap-1 text-left hover:text-neutral-900`}
+                onClick={() => clickSort('cat')}
+              >
+                Category <span className="text-neutral-400">{arrow('cat')}</span>
+              </button>
+              <span className={headCell}>Video</span>
+              <span />
+            </div>
+            {rows.map((m) => (
+              <div
+                key={m}
+                role="button"
+                tabIndex={0}
+                className={`${cols} group cursor-pointer border-b border-[#DCD6C1] px-2 py-2.5 outline-none transition-colors last:border-0 hover:bg-[#FBF9F0] focus-visible:bg-[#FBF9F0]`}
+                onClick={() => setSelected(m)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelected(m);
+                  }
+                }}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[15px] text-neutral-900">
+                    {m}
+                  </span>
+                  <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100">
+                    Open
+                  </span>
                 </span>
-                {videos[m] && (
-                  <span className="font-mono text-[11px] leading-none text-neutral-500">
-                    ▶
+                {catBadge(m)}
+                {videos[m] ? (
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#1F7A6E]">
+                    ▶ Video
+                  </span>
+                ) : (
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100">
+                    + Add
                   </span>
                 )}
-                {badge(m)}
-                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-400">
-                  Open
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+                <button
+                  className={`text-[15px] leading-none transition-opacity ${
+                    favSet.has(m)
+                      ? 'text-red-500 opacity-100'
+                      : 'text-neutral-400 opacity-0 hover:text-red-500 group-hover:opacity-100'
+                  }`}
+                  title={favSet.has(m) ? 'Remove favorite' : 'Add to favorites'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    flip(m);
+                  }}
+                >
+                  {favSet.has(m) ? '♥' : '♡'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {selected && (
@@ -567,65 +669,197 @@ export function MoveVideoModal({
   );
 }
 
-// #/battle — local head-to-head: simulate two game plans to see who'd win.
-// No backend, so rivals = the Discover presets and the sample plan, built in,
-// plus any plan a friend exports and you import.
-const RIVALS: Tree[] = [
-  ...PRESETS.map((p) => ({
-    id: `__preset_${p.name}`,
-    name: p.name,
-    nodes: p.nodes,
-    edges: p.edges,
-    updatedAt: 0,
-  })),
-  {
-    id: '__sample_rival',
-    name: 'Sample Grappler',
-    nodes: sampleNodes,
-    edges: sampleEdges,
-    updatedAt: 0,
+// #/battle — local head-to-head, two modes. Lobby: challenge a built-in
+// grappler ("someone else"). My Flows: spar two of your own plans. No backend,
+// so the "lobby" is a fixed roster of characters, each backed by a Discover flow.
+const rivalTree = (p: Preset, name: string): Tree => ({
+  id: `__preset_${p.name}`,
+  name,
+  nodes: p.nodes,
+  edges: p.edges,
+  updatedAt: 0,
+});
+
+type Opponent = { id: string; name: string; belt: string; blurb: string; flow: Tree };
+// a belt-ranked persona per preset — the grappler whose game IS that flow
+const PERSONAS: Record<string, { name: string; belt: string; blurb: string }> = {
+  'White Belt Fundamentals': {
+    name: 'Riley',
+    belt: 'White',
+    blurb: 'Textbook survivor — escapes first, then the basic finishes.',
   },
-];
+  'Closed Guard Attacks': {
+    name: 'Sofia',
+    belt: 'Blue',
+    blurb: 'Guard player hunting the armbar–triangle trap.',
+  },
+  'Wrestle to Mount': {
+    name: 'Marcus',
+    belt: 'Purple',
+    blurb: 'Wrestler — heavy top pressure straight to mount.',
+  },
+  'Leg Lock Entries': {
+    name: 'Dex',
+    belt: 'Brown',
+    blurb: 'Leg locker — dives for the ashi and inverts to the saddle.',
+  },
+  'Back Attacks': {
+    name: 'Kaito',
+    belt: 'Black',
+    blurb: 'Seatbelt to the back, chokes waiting on both sides.',
+  },
+};
+const LOBBY: Opponent[] = PRESETS.filter((p) => PERSONAS[p.name]).map((p) => {
+  const persona = PERSONAS[p.name];
+  return { id: `__op_${p.name}`, ...persona, flow: rivalTree(p, persona.name) };
+});
+
+const beltAvatar = (name: string, belt: string) => {
+  const b = BELTS[belt];
+  return (
+    <span
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-900 bg-[#52E5D8] font-serif text-[17px]"
+      style={b ? { backgroundColor: b.bg, color: b.fg } : undefined}
+    >
+      {name[0]?.toUpperCase()}
+    </span>
+  );
+};
+
+// app-styled dropdown for picking a plan — a button + floating popover,
+// closing on outside-click or Escape. Replaces the native <select>.
+function PlanSelect({
+  plans,
+  value,
+  onChange,
+}: {
+  plans: Tree[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const current = plans.find((t) => t.id === value) ?? plans[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative mt-2 max-w-xs">
+      <button
+        type="button"
+        className="flex h-10 w-full items-center justify-between gap-2 rounded-full border border-neutral-900 bg-[#FBF9F0] px-4 text-left transition-colors hover:bg-[#EFEBDC]"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[14px] tracking-tight text-neutral-900">
+          {current?.name ?? 'Select a plan'}
+        </span>
+        <span
+          className={`shrink-0 font-mono text-[11px] leading-none text-neutral-500 transition-transform ${
+            open ? 'rotate-180' : ''
+          }`}
+        >
+          ▾
+        </span>
+      </button>
+      {open && (
+        <ul className="absolute inset-x-0 top-full z-30 mt-1.5 max-h-64 overflow-auto rounded-xl border border-neutral-900 bg-[#FBF9F0] py-1 shadow-xl">
+          {plans.map((t) => {
+            const active = t.id === value;
+            return (
+              <li key={t.id}>
+                <button
+                  type="button"
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-left transition-colors ${
+                    active ? 'bg-[#EFEBDC]' : 'hover:bg-[#EAE5D3]'
+                  }`}
+                  onClick={() => {
+                    onChange(t.id);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="w-3 shrink-0 font-mono text-[11px] leading-none text-neutral-900">
+                    {active ? '✓' : ''}
+                  </span>
+                  <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[14px] tracking-tight text-neutral-900">
+                    {t.name}
+                  </span>
+                  <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.14em] text-neutral-400">
+                    {t.nodes.length} mv
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export function BattlePage() {
   const trees = useGraph((s) => s.trees);
   const plans = Object.values(trees).sort((a, b) => b.updatedAt - a.updatedAt);
-  // built-in opponents so Battle works even with a single plan
-  const roster = [...plans, ...RIVALS];
-  const [youId, setYouId] = useState(roster[0]?.id ?? '');
-  const [oppId, setOppId] = useState((plans[1] ?? RIVALS[0]).id);
-  const [match, setMatch] = useState<Match | null>(null);
+  const [mode, setMode] = useState<'lobby' | 'flows'>('lobby');
+  const [youId, setYouId] = useState(plans[0]?.id ?? '');
+  const [oppId, setOppId] = useState(plans[1]?.id ?? plans[0]?.id ?? '');
+  const [result, setResult] = useState<
+    { match: Match; you: Tree; opp: Tree } | null
+  >(null);
+  const resultRef = useRef<HTMLDivElement>(null);
 
-  const find = (id: string) => roster.find((t) => t.id === id);
-  const you = find(youId);
-  const opp = find(oppId);
-  const fight = () => {
-    if (you && opp) setMatch(simulateMatch(you, opp));
+  const you = plans.find((t) => t.id === youId) ?? plans[0];
+  const showResult = (opp: Tree) => {
+    if (!you) return;
+    setResult({ match: simulateMatch(you, opp), you, opp });
+    requestAnimationFrame(() =>
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }),
+    );
+  };
+  const fightFlows = () => {
+    const opp = plans.find((t) => t.id === oppId);
+    if (opp) showResult(opp);
+  };
+  const switchMode = (m: 'lobby' | 'flows') => {
+    setMode(m);
+    setResult(null);
   };
 
-  const picker = (value: string, onChange: (v: string) => void) => (
-    <select
-      className="mt-1 h-10 w-full cursor-pointer appearance-none rounded-full border border-neutral-900 bg-[#FBF9F0] px-4 font-sans text-[14px] text-neutral-900 outline-none"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
+  const modePill = (m: 'lobby' | 'flows', label: string) => (
+    <button
+      className={`h-9 rounded-full border px-4 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+        mode === m
+          ? 'border-neutral-900 bg-neutral-900 text-[#F3EFE2]'
+          : 'border-[#B7B098] text-neutral-600 hover:border-neutral-900 hover:text-neutral-900'
+      }`}
+      onClick={() => switchMode(m)}
     >
-      {/* optgroups keep a user's copy of a preset distinct from the built-in rival */}
-      <optgroup label="Your Plans">
-        {plans.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name}
-          </option>
-        ))}
-      </optgroup>
-      <optgroup label="Built-in Rivals">
-        {RIVALS.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name}
-          </option>
-        ))}
-      </optgroup>
-    </select>
+      {label}
+    </button>
   );
+
+  // per-mode guidance: a one-line caption + numbered steps for the tab's flow
+  const modeCaption =
+    mode === 'lobby'
+      ? 'Face a built-in grappler — each is a real game plan wearing a belt. Beat one and the next belt is waiting.'
+      : 'Spar two of your own plans head-to-head to see which game holds up.';
+  const steps =
+    mode === 'lobby'
+      ? ['Pick your fighter', 'Challenge a grappler', 'Read the scouting report']
+      : ['Pick your fighter', 'Pick a sparring plan', 'Compare the two games'];
 
   return (
     <Shell>
@@ -648,29 +882,120 @@ export function BattlePage() {
         </div>
       ) : (
         <>
-          <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-neutral-600">
-            Pit two game plans against each other and simulate the scramble.
-            The Discover plans are built in as rivals — see if your game beats
-            theirs.
+          <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-neutral-600">
+            Pressure-test a game plan by simulating scrambles against an
+            opponent — no live sparring partner needed. Pick a plan, choose who
+            to face, and read the scouting report.
           </p>
-          <div className="mt-8 grid items-end gap-4 sm:grid-cols-[1fr_auto_1fr]">
-            <label className="block">
-              <span className={monoLabel}>You</span>
-              {picker(youId, setYouId)}
-            </label>
-            <span className="pb-2 text-center font-serif text-[20px] text-neutral-500">
-              vs
-            </span>
-            <label className="block">
-              <span className={monoLabel}>Opponent</span>
-              {picker(oppId, setOppId)}
-            </label>
+
+          <div className="mt-6 flex gap-1.5">
+            {modePill('lobby', 'Lobby')}
+            {modePill('flows', 'My Flows')}
           </div>
-          <button className={`${btnPrimary} mt-6`} onClick={fight}>
-            {match ? 'Rematch' : 'Fight'}
-          </button>
-          {match && you && opp && (
-            <BattleResult match={match} you={you} opp={opp} />
+          <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-neutral-600">
+            {modeCaption}
+          </p>
+
+          {/* numbered clues so the tab's flow is obvious at a glance */}
+          <ol className="mt-5 flex flex-wrap items-center gap-x-2.5 gap-y-2 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-500">
+            {steps.map((s, i) => (
+              <li key={s} className="flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-neutral-900 text-neutral-900">
+                  {i + 1}
+                </span>
+                <span>{s}</span>
+                {i < steps.length - 1 && (
+                  <span className="text-neutral-300">→</span>
+                )}
+              </li>
+            ))}
+          </ol>
+
+          {/* step 1 — your fighter, shared across both modes */}
+          <div className="mt-8">
+            <p className={monoLabel}>Your Fighter</p>
+            <PlanSelect plans={plans} value={youId} onChange={setYouId} />
+            <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-400">
+              The plan you’ll run in the match.
+            </p>
+          </div>
+
+          {mode === 'lobby' ? (
+            <>
+              <div className="mt-8 flex items-baseline justify-between gap-3">
+                <p className={monoLabel}>Step 2 · Choose an Opponent</p>
+                <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-neutral-400">
+                  Tap Challenge to simulate
+                </p>
+              </div>
+              <ul className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {LOBBY.map((op) => (
+                  <li
+                    key={op.id}
+                    className="flex flex-col rounded-xl border border-[#B7B098] bg-[#FBF9F0] p-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      {beltAvatar(op.name, op.belt)}
+                      <div className="min-w-0">
+                        <h3 className="font-serif text-[18px] tracking-tight">
+                          {op.name}
+                        </h3>
+                        <p className={monoLabel}>{op.belt} Belt</p>
+                      </div>
+                    </div>
+                    <p className="mt-3 flex-1 text-[13px] leading-relaxed text-neutral-600">
+                      {op.blurb}
+                    </p>
+                    <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                      {op.flow.nodes.length} moves · {op.flow.edges.length} links
+                    </p>
+                    <button
+                      className={`${btnPrimary} mt-3`}
+                      title={`Simulate a match: ${you?.name ?? 'your fighter'} vs ${op.name}`}
+                      onClick={() => showResult(op.flow)}
+                    >
+                      Challenge
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <>
+              <div className="mt-8">
+                <p className={monoLabel}>Step 2 · Opponent Plan</p>
+                <PlanSelect plans={plans} value={oppId} onChange={setOppId} />
+                <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-400">
+                  The plan you’ll test it against.
+                </p>
+              </div>
+              {plans.length < 2 && (
+                <p className="mt-4 max-w-md rounded-xl border border-[#B7B098] bg-[#FBF9F0] px-4 py-3 text-[13px] leading-relaxed text-neutral-600">
+                  You’ve only got one plan — make another on the{' '}
+                  <a className="underline hover:text-neutral-900" href="#/plans">
+                    Plans page
+                  </a>{' '}
+                  to spar your own games against each other.
+                </p>
+              )}
+              <button
+                className={`${btnPrimary} mt-6 disabled:pointer-events-none disabled:opacity-40`}
+                disabled={plans.length < 2}
+                onClick={fightFlows}
+              >
+                {result ? 'Rematch' : 'Simulate Match'}
+              </button>
+            </>
+          )}
+
+          {result && (
+            <div ref={resultRef}>
+              <BattleResult
+                match={result.match}
+                you={result.you}
+                opp={result.opp}
+              />
+            </div>
           )}
         </>
       )}
@@ -742,17 +1067,27 @@ function BattleResult({
     <div className="mt-8">
       <div className="border border-neutral-900 bg-[#CDC7AE] px-6 py-5">
         <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-600">
-          Result
+          Result · {you.name} vs {opp.name}
         </p>
         <h2 className="mt-1 font-serif text-[28px] tracking-tight">{title}</h2>
         <p className="mt-1 font-mono text-[12px] uppercase tracking-[0.16em] text-neutral-700">
-          {match.youWins} – {match.oppWins}
+          {match.youWins} – {match.oppWins} · rounds won
         </p>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <p className="mt-2 max-w-xl text-[12px] leading-relaxed text-neutral-500">
+        {match.rounds.length} scrambles simulated. Each fighter runs their plan
+        from a starting position until someone lands a submission — the deeper,
+        more finish-heavy game tends to win.
+      </p>
+      <p className={`mt-6 ${monoLabel}`}>Scouting Report</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <BattleStat name={you.name} s={ys} won={match.winner === 'you'} />
         <BattleStat name={opp.name} s={os} won={match.winner === 'opp'} />
       </div>
+      <p className="mt-2 font-mono text-[9px] uppercase leading-relaxed tracking-[0.14em] text-neutral-400">
+        Power = overall score · Subs = finishing threats · Depth = longest chain ·
+        Moves = total nodes
+      </p>
       {tips.length > 0 && (
         <div className="mt-4 rounded-xl border border-neutral-900 bg-[#FBF9F0] px-4 py-3">
           <p className={monoLabel}>Coach’s Corner</p>
@@ -764,6 +1099,9 @@ function BattleResult({
         </div>
       )}
       <p className={`mt-6 ${monoLabel}`}>Round by Round</p>
+      <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.14em] text-neutral-400">
+        How each scramble ended, and who took it.
+      </p>
       <ul className="mt-3 space-y-2">
         {match.rounds.map((r, i) => (
           <li
@@ -830,7 +1168,11 @@ export function DiscoverPage() {
             <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">
               {p.nodes.length} moves · {p.edges.length} links
             </p>
-            <button className={`${btnPrimary} mt-3`} onClick={() => add(p)}>
+            <button
+              className={`${btnPrimary} mt-3`}
+              title={`Copy “${p.name}” into your plans so you can edit it`}
+              onClick={() => add(p)}
+            >
               Add to My Plans
             </button>
           </li>
@@ -1041,6 +1383,7 @@ function FolderBox({
   const deleteFolder = useGraph((s) => s.deleteFolder);
   const setTreeFolder = useGraph((s) => s.setTreeFolder);
   const [over, setOver] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   return (
     <li
@@ -1082,7 +1425,7 @@ function FolderBox({
           <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             <button
               className={`${iconBtn} hover:border-neutral-500 hover:text-black`}
-              title="Edit folder"
+              title={`Edit “${folder.name}”`}
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit();
@@ -1092,11 +1435,10 @@ function FolderBox({
             </button>
             <button
               className={`${iconBtn} hover:border-red-500 hover:text-red-500`}
-              title="Delete folder"
+              title={`Delete “${folder.name}”`}
               onClick={(e) => {
                 e.stopPropagation();
-                if (confirm(`Delete folder "${folder.name}"? Its flows are kept.`))
-                  deleteFolder(folder.name);
+                setConfirming(true);
               }}
             >
               ×
@@ -1112,6 +1454,16 @@ function FolderBox({
           {count} {count === 1 ? 'flow' : 'flows'} · drag to file
         </p>
       </div>
+      {confirming && (
+        <ConfirmModal
+          title="Delete folder?"
+          body={`“${folder.name}” will be removed. Its ${count} ${
+            count === 1 ? 'flow is' : 'flows are'
+          } kept and moved to Unfiled.`}
+          onConfirm={() => deleteFolder(folder.name)}
+          onClose={() => setConfirming(false)}
+        />
+      )}
     </li>
   );
 }
@@ -1193,12 +1545,71 @@ function FolderModal({
   );
 }
 
+// custom delete confirmation — an overlay in the app's style, replacing the
+// native confirm(). Cancel is focused so a stray Enter can't delete.
+function ConfirmModal({
+  title,
+  body,
+  confirmLabel = 'Delete',
+  onConfirm,
+  onClose,
+}: {
+  title: string;
+  body: string;
+  confirmLabel?: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      // stopPropagation: cards below can have their own onClick (e.g. folder nav)
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl border border-neutral-900 bg-[#F3EFE2] p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
+          Confirm
+        </p>
+        <h2 className="mt-1 font-serif text-[24px] text-neutral-900">{title}</h2>
+        <p className="mt-3 text-[14px] leading-relaxed text-neutral-600">{body}</p>
+        <div className="mt-6 flex justify-end gap-2">
+          <button type="button" className={btnGhost} autoFocus onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={`${btn} border-red-600 bg-red-600 text-[#F3EFE2] hover:bg-red-500`}
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlanCard({ tree }: { tree: Tree }) {
   const folders = useGraph((s) => s.folders);
   const setTreeFolder = useGraph((s) => s.setTreeFolder);
   const renameTree = useGraph((s) => s.renameTree);
   const deleteTree = useGraph((s) => s.deleteTree);
   const [editing, setEditing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const commit = (value: string) => {
     renameTree(tree.id, value.trim() || tree.name);
@@ -1242,17 +1653,15 @@ function PlanCard({ tree }: { tree: Tree }) {
         <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             className={`${iconBtn} hover:border-neutral-500 hover:text-black`}
-            title="Rename"
+            title={`Rename “${tree.name}”`}
             onClick={() => setEditing(true)}
           >
             ✎
           </button>
           <button
             className={`${iconBtn} hover:border-red-500 hover:text-red-500`}
-            title="Delete"
-            onClick={() => {
-              if (confirm(`Delete "${tree.name}"?`)) deleteTree(tree.id);
-            }}
+            title={`Delete “${tree.name}”`}
+            onClick={() => setConfirming(true)}
           >
             ×
           </button>
@@ -1260,6 +1669,7 @@ function PlanCard({ tree }: { tree: Tree }) {
       </div>
       <div
         className="block w-full cursor-pointer px-4 py-4 text-left"
+        title={`Open “${tree.name}”`}
         onClick={() => {
           if (!editing) openPlan(tree.id);
         }}
@@ -1289,6 +1699,16 @@ function PlanCard({ tree }: { tree: Tree }) {
           Updated {new Date(tree.updatedAt).toLocaleDateString()}
         </span>
       </div>
+      {confirming && (
+        <ConfirmModal
+          title="Delete plan?"
+          body={`“${tree.name}” and its ${tree.nodes.length} ${
+            tree.nodes.length === 1 ? 'move' : 'moves'
+          } will be removed. This can’t be undone.`}
+          onConfirm={() => deleteTree(tree.id)}
+          onClose={() => setConfirming(false)}
+        />
+      )}
     </li>
   );
 }

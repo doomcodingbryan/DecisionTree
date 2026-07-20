@@ -80,6 +80,9 @@ type GraphState = {
   updateFolder: (name: string, next: string, info?: string) => void;
   deleteFolder: (name: string) => void;
   setTreeFolder: (id: string, folder?: string) => void;
+  // starred move names, global across plans (persisted, surfaced everywhere)
+  favorites: string[];
+  toggleFavorite: (move: string) => void;
   onNodesChange: (changes: NodeChange<MoveNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<TransitionEdge>[]) => void;
   onConnect: (connection: Connection) => void;
@@ -405,6 +408,13 @@ export const useGraph = create<GraphState>()(
         },
         aiFor: null,
         toggleAi: (id) => set({ aiFor: get().aiFor === id ? null : id }),
+        favorites: [],
+        toggleFavorite: (move) =>
+          set((s) => ({
+            favorites: s.favorites.includes(move)
+              ? s.favorites.filter((m) => m !== move)
+              : [...s.favorites, move],
+          })),
         clear: () => {
           snapshot();
           commit({ nodes: [], edges: [], lastAddedId: null });
@@ -451,7 +461,11 @@ export const useGraph = create<GraphState>()(
           ),
         };
       },
-      partialize: (s) => ({ trees: s.trees, folders: s.folders }),
+      partialize: (s) => ({
+        trees: s.trees,
+        folders: s.folders,
+        favorites: s.favorites,
+      }),
     },
   ),
 );

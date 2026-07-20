@@ -31,6 +31,9 @@ export default function MoveLibrary() {
   const canRedo = useGraph((s) => s.future.length > 0);
   const clear = useGraph((s) => s.clear);
   const load = useGraph((s) => s.load);
+  const favorites = useGraph((s) => s.favorites);
+  const toggleFavorite = useGraph((s) => s.toggleFavorite);
+  const favSet = new Set(favorites);
   const fileRef = useRef<HTMLInputElement>(null);
   const { screenToFlowPosition, fitView } = useReactFlow();
 
@@ -79,6 +82,38 @@ export default function MoveLibrary() {
         ] as const,
     )
     .filter(([, moves]) => moves.length > 0);
+  const favMoves = q
+    ? favorites.filter((m) => moveMatches(m, q))
+    : favorites;
+
+  // a move row: drag/click to add, plus a heart to (un)favorite
+  const moveRow = (move: string) => (
+    <div key={move} className="group/mv flex items-center pr-1 hover:bg-[#EAE5D3]">
+      <button
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', move);
+          e.dataTransfer.effectAllowed = 'copy';
+        }}
+        onClick={() => addAtCenter(move)}
+        className="flex-1 cursor-grab px-3 py-1.5 text-left text-[13px] tracking-tight text-neutral-700 hover:text-black active:cursor-grabbing"
+        title="Drag onto canvas, or click to add"
+      >
+        {move}
+      </button>
+      <button
+        onClick={() => toggleFavorite(move)}
+        title={favSet.has(move) ? 'Unfavorite' : 'Favorite'}
+        className={`px-1.5 text-[12px] leading-none transition-opacity ${
+          favSet.has(move)
+            ? 'text-red-500 opacity-100'
+            : 'text-neutral-400 opacity-0 hover:text-red-500 group-hover/mv:opacity-100'
+        }`}
+      >
+        {favSet.has(move) ? '♥' : '♡'}
+      </button>
+    </div>
+  );
 
   const addAtCenter = (label: string) => {
     const p = screenToFlowPosition({
@@ -202,6 +237,19 @@ export default function MoveLibrary() {
         />
       </div>
       <div className="flex-1 overflow-y-auto">
+        {/* starred moves pinned to the top for quick reach while building */}
+        {favMoves.length > 0 && (
+          <details open className="group">
+            <summary className="sticky top-0 z-10 flex cursor-pointer list-none items-center justify-between border-b border-[#E7E1CE] bg-[#F7F4E8] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500 hover:bg-[#EFEBDC] hover:text-black [&::-webkit-details-marker]:hidden">
+              <span className="text-red-500">♥ Favorites</span>
+              <span className="flex items-center gap-2 text-neutral-400">
+                {favMoves.length}
+                <span className="transition-transform group-open:rotate-90">›</span>
+              </span>
+            </summary>
+            {favMoves.map(moveRow)}
+          </details>
+        )}
         {groups.map(([category, moves]) => (
           // ponytail: native <details> accordion — collapsed by default kills the
           // scrolling; the q-suffixed key remounts so searches always open and
@@ -220,21 +268,7 @@ export default function MoveLibrary() {
                 </span>
               </span>
             </summary>
-            {moves.map((move) => (
-              <button
-                key={move}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('text/plain', move);
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
-                onClick={() => addAtCenter(move)}
-                className="block w-full cursor-grab px-3 py-1.5 text-left text-[13px] tracking-tight text-neutral-700 hover:bg-[#EAE5D3] hover:text-black active:cursor-grabbing"
-                title="Drag onto canvas, or click to add"
-              >
-                {move}
-              </button>
-            ))}
+            {moves.map(moveRow)}
           </details>
         ))}
         {groups.length === 0 && (
