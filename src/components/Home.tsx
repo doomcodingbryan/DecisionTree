@@ -1,6 +1,21 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useGraph, type Folder, type Tree } from '../store';
-import { MOVE_LIBRARY, ALL_MOVES, MOVE_CATEGORY } from '../data/moves';
+import {
+  MOVE_LIBRARY,
+  ALL_MOVES,
+  MOVE_CATEGORY,
+  moveMatches,
+} from '../data/moves';
+import {
+  analyzeFlow,
+  coachingTips,
+  simulateMatch,
+  type FlowStats,
+  type Match,
+} from '../battle';
+import { sampleEdges, sampleNodes } from '../data/sampleGraph';
+import { PRESETS, type Preset } from '../data/presets';
+import { getVideos, parseYouTubeId, saveVideo, youtubeSearch } from '../video';
 
 const openPlan = (id: string) => {
   window.location.hash = `#/t/${id}`;
@@ -288,17 +303,23 @@ export function AccountPage() {
   );
 }
 
-// #/library — browse the move catalog. Category filter + search + type-badged
-// cards, mirroring whitebeltclub.com/technique-library in this app's styling.
+// #/library — whitebeltclub-style catalog: top filters, a grid or list of
+// category-badged techniques, each opening a video panel.
 export function LibraryPage() {
   const [cat, setCat] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [selected, setSelected] = useState<string | null>(null);
+  const [videos, setVideos] = useState<Record<string, string>>(() => getVideos());
   const needle = q.trim().toLowerCase();
 
   const source = cat ? MOVE_LIBRARY[cat] : ALL_MOVES;
-  const moves = needle
-    ? source.filter((m) => m.toLowerCase().includes(needle))
-    : source;
+  const moves = needle ? source.filter((m) => moveMatches(m, needle)) : source;
+
+  const attach = (move: string, id: string | null) => {
+    saveVideo(move, id);
+    setVideos(getVideos());
+  };
 
   const filterPill = (active: boolean) =>
     `rounded-full border px-4 py-2 font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
@@ -306,6 +327,17 @@ export function LibraryPage() {
         ? 'border-neutral-900 bg-neutral-900 text-[#F3EFE2]'
         : 'border-[#B7B098] text-neutral-600 hover:border-neutral-900 hover:text-neutral-900'
     }`;
+  const viewBtn = (active: boolean) =>
+    `h-8 rounded-full border px-3 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors ${
+      active
+        ? 'border-neutral-900 bg-neutral-900 text-[#F3EFE2]'
+        : 'border-[#B7B098] text-neutral-500 hover:border-neutral-900'
+    }`;
+  const badge = (m: string) => (
+    <span className="inline-block rounded-full bg-[#E7E2D0] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-600">
+      {MOVE_CATEGORY[m]}
+    </span>
+  );
 
   return (
     <Shell>
@@ -320,81 +352,490 @@ export function LibraryPage() {
         />
       </div>
 
-      {/* category filter — their "Select categories" dropdown, as pills w/ counts */}
       <div className="mt-6 flex flex-wrap gap-2">
         <button className={filterPill(cat === null)} onClick={() => setCat(null)}>
           All · {ALL_MOVES.length}
         </button>
         {Object.entries(MOVE_LIBRARY).map(([c, list]) => (
-          <button
-            key={c}
-            className={filterPill(cat === c)}
-            onClick={() => setCat(c)}
-          >
+          <button key={c} className={filterPill(cat === c)} onClick={() => setCat(c)}>
             {c} · {list.length}
           </button>
         ))}
       </div>
 
-      <p className={`mt-6 ${monoLabel}`}>
-        {moves.length} {moves.length === 1 ? 'move' : 'moves'}
-      </p>
+      <div className="mt-6 flex items-center justify-between">
+        <p className={monoLabel}>
+          {moves.length} {moves.length === 1 ? 'move' : 'moves'}
+        </p>
+        <div className="flex gap-1.5">
+          <button className={viewBtn(view === 'grid')} onClick={() => setView('grid')}>
+            Grid
+          </button>
+          <button className={viewBtn(view === 'list')} onClick={() => setView('list')}>
+            List
+          </button>
+        </div>
+      </div>
 
       {moves.length === 0 ? (
         <p className={`mt-8 ${monoLabel}`}>No moves match “{q.trim()}”.</p>
-      ) : (
+      ) : view === 'grid' ? (
         <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {moves.map((m) => (
-            <li
-              key={m}
-              className="rounded-xl border border-[#B7B098] bg-[#FBF9F0] px-4 py-3.5 transition-colors hover:border-neutral-900"
-            >
-              <span className="inline-block rounded-full bg-[#E7E2D0] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-600">
-                {MOVE_CATEGORY[m]}
-              </span>
-              <span className="mt-2 block overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[16px] tracking-tight text-neutral-900">
-                {m}
-              </span>
+            <li key={m}>
+              <button
+                className="w-full rounded-xl border border-[#B7B098] bg-[#FBF9F0] px-4 py-3.5 text-left transition-colors hover:border-neutral-900"
+                onClick={() => setSelected(m)}
+              >
+                <span className="flex items-center justify-between gap-2">
+                  {badge(m)}
+                  {videos[m] && (
+                    <span className="font-mono text-[11px] leading-none text-neutral-500">
+                      ▶
+                    </span>
+                  )}
+                </span>
+                <span className="mt-2 block overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[16px] tracking-tight text-neutral-900">
+                  {m}
+                </span>
+              </button>
             </li>
           ))}
         </ul>
+      ) : (
+        <ul className="mt-3 border-y border-[#DCD6C1]">
+          {moves.map((m) => (
+            <li key={m} className="border-b border-[#DCD6C1] last:border-0">
+              <button
+                className="flex w-full items-center gap-3 px-1 py-2.5 text-left transition-colors hover:bg-[#FBF9F0]"
+                onClick={() => setSelected(m)}
+              >
+                <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[15px] text-neutral-900">
+                  {m}
+                </span>
+                {videos[m] && (
+                  <span className="font-mono text-[11px] leading-none text-neutral-500">
+                    ▶
+                  </span>
+                )}
+                {badge(m)}
+                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-400">
+                  Open
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {selected && (
+        <MoveVideoModal
+          move={selected}
+          videoId={videos[selected]}
+          onAttach={attach}
+          onClose={() => setSelected(null)}
+        />
       )}
     </Shell>
   );
 }
 
-// #/battle — ponytail: placeholder pending a spec for what "Battle" does
+// technique detail + video. No API key, so a video is attached by pasting a
+// YouTube link (persisted in localStorage); the search button helps find one.
+// Exported for the canvas: MoveNode opens the same modal from its ▶ button.
+export function MoveVideoModal({
+  move,
+  videoId,
+  onAttach,
+  onClose,
+}: {
+  move: string;
+  videoId?: string;
+  onAttach: (move: string, id: string | null) => void;
+  onClose: () => void;
+}) {
+  const [url, setUrl] = useState('');
+  const [err, setErr] = useState(false);
+  const attach = () => {
+    const id = parseYouTubeId(url);
+    if (!id) return setErr(true);
+    onAttach(move, id);
+    setUrl('');
+    setErr(false);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
+      <div
+        className="w-full max-w-xl rounded-2xl border border-neutral-900 bg-[#F3EFE2] p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            {/* canvas nodes can carry custom labels with no category */}
+            {MOVE_CATEGORY[move] && (
+              <span className="inline-block rounded-full bg-[#E7E2D0] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-600">
+                {MOVE_CATEGORY[move]}
+              </span>
+            )}
+            <h2 className="mt-1 font-serif text-[26px] tracking-tight">{move}</h2>
+          </div>
+          <button
+            className={`${iconBtn} shrink-0 hover:border-neutral-500 hover:text-black`}
+            title="Close"
+            onClick={onClose}
+          >
+            ×
+          </button>
+        </div>
+
+        {videoId ? (
+          <>
+            <div className="mt-4 aspect-video w-full overflow-hidden rounded-xl border border-neutral-900 bg-black">
+              <iframe
+                className="h-full w-full"
+                src={`https://www.youtube-nocookie.com/embed/${videoId}`}
+                title={move}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a
+                className={btnGhost}
+                href={youtubeSearch(move)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                More on YouTube
+              </a>
+              <button className={btnGhost} onClick={() => onAttach(move, null)}>
+                Remove Video
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="mt-4">
+            <p className="text-[14px] leading-relaxed text-neutral-600">
+              No video yet. Find one on YouTube, then paste its link to embed it
+              here.
+            </p>
+            <a
+              className={`${btnPrimary} mt-4 inline-flex items-center`}
+              href={youtubeSearch(move)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Search YouTube ▶
+            </a>
+            <div className="mt-4 flex gap-2">
+              <input
+                className={`h-10 flex-1 rounded-full border bg-[#FBF9F0] px-4 font-sans text-[14px] text-neutral-900 outline-none placeholder:text-neutral-400 ${
+                  err ? 'border-red-500' : 'border-neutral-900'
+                }`}
+                placeholder="Paste a YouTube link…"
+                value={url}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  setErr(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') attach();
+                }}
+              />
+              <button className={btnPrimary} onClick={attach}>
+                Attach
+              </button>
+            </div>
+            {err && (
+              <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-red-500">
+                Not a valid YouTube link
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// #/battle — local head-to-head: simulate two game plans to see who'd win.
+// No backend, so rivals = the Discover presets and the sample plan, built in,
+// plus any plan a friend exports and you import.
+const RIVALS: Tree[] = [
+  ...PRESETS.map((p) => ({
+    id: `__preset_${p.name}`,
+    name: p.name,
+    nodes: p.nodes,
+    edges: p.edges,
+    updatedAt: 0,
+  })),
+  {
+    id: '__sample_rival',
+    name: 'Sample Grappler',
+    nodes: sampleNodes,
+    edges: sampleEdges,
+    updatedAt: 0,
+  },
+];
+
 export function BattlePage() {
+  const trees = useGraph((s) => s.trees);
+  const plans = Object.values(trees).sort((a, b) => b.updatedAt - a.updatedAt);
+  // built-in opponents so Battle works even with a single plan
+  const roster = [...plans, ...RIVALS];
+  const [youId, setYouId] = useState(roster[0]?.id ?? '');
+  const [oppId, setOppId] = useState((plans[1] ?? RIVALS[0]).id);
+  const [match, setMatch] = useState<Match | null>(null);
+
+  const find = (id: string) => roster.find((t) => t.id === id);
+  const you = find(youId);
+  const opp = find(oppId);
+  const fight = () => {
+    if (you && opp) setMatch(simulateMatch(you, opp));
+  };
+
+  const picker = (value: string, onChange: (v: string) => void) => (
+    <select
+      className="mt-1 h-10 w-full cursor-pointer appearance-none rounded-full border border-neutral-900 bg-[#FBF9F0] px-4 font-sans text-[14px] text-neutral-900 outline-none"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {/* optgroups keep a user's copy of a preset distinct from the built-in rival */}
+      <optgroup label="Your Plans">
+        {plans.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label="Built-in Rivals">
+        {RIVALS.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}
+          </option>
+        ))}
+      </optgroup>
+    </select>
+  );
+
   return (
     <Shell>
       <p className={monoLabel}>Train</p>
       <h1 className="mt-1 font-serif text-[40px] tracking-tight">Battle</h1>
-      <div className="mt-10 border border-neutral-900 bg-[#FBF9F0]/90 px-6 py-10 text-center">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
-          Coming Soon
-        </p>
-        <p className="mt-2 font-serif text-[24px] tracking-tight">
-          Pressure-test your game plan.
-        </p>
-      </div>
+      {plans.length === 0 ? (
+        <div className="mt-10 border border-neutral-900 bg-[#FBF9F0]/90 px-6 py-10 text-center">
+          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
+            No Plans Yet
+          </p>
+          <p className="mt-2 font-serif text-[24px] tracking-tight">
+            Build a game plan, then bring it to the mat.
+          </p>
+          <a
+            className={`${btnPrimary} mt-6 inline-flex items-center`}
+            href="#/plans"
+          >
+            Go to Plans
+          </a>
+        </div>
+      ) : (
+        <>
+          <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-neutral-600">
+            Pit two game plans against each other and simulate the scramble.
+            The Discover plans are built in as rivals — see if your game beats
+            theirs.
+          </p>
+          <div className="mt-8 grid items-end gap-4 sm:grid-cols-[1fr_auto_1fr]">
+            <label className="block">
+              <span className={monoLabel}>You</span>
+              {picker(youId, setYouId)}
+            </label>
+            <span className="pb-2 text-center font-serif text-[20px] text-neutral-500">
+              vs
+            </span>
+            <label className="block">
+              <span className={monoLabel}>Opponent</span>
+              {picker(oppId, setOppId)}
+            </label>
+          </div>
+          <button className={`${btnPrimary} mt-6`} onClick={fight}>
+            {match ? 'Rematch' : 'Fight'}
+          </button>
+          {match && you && opp && (
+            <BattleResult match={match} you={you} opp={opp} />
+          )}
+        </>
+      )}
     </Shell>
   );
 }
 
-// #/discover — ponytail: placeholder pending a spec for what "Discover" does
+function BattleStat({
+  name,
+  s,
+  won,
+}: {
+  name: string;
+  s: FlowStats;
+  won: boolean;
+}) {
+  const row = (label: string, value: number) => (
+    <div className="flex justify-between">
+      <dt>{label}</dt>
+      <dd className="text-neutral-900">{value}</dd>
+    </div>
+  );
+  return (
+    <div
+      className={`rounded-xl border px-4 py-3 ${
+        won ? 'border-neutral-900 bg-[#EFEBDC]' : 'border-[#B7B098] bg-[#FBF9F0]'
+      }`}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[17px] tracking-tight">
+          {name}
+        </p>
+        {won && (
+          <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
+            Winner
+          </span>
+        )}
+      </div>
+      <dl className="mt-2 grid grid-cols-2 gap-x-5 gap-y-1 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-500">
+        {row('Power', s.power)}
+        {row('Subs', s.submissions)}
+        {row('Depth', s.maxDepth)}
+        {row('Moves', s.moves)}
+      </dl>
+    </div>
+  );
+}
+
+function BattleResult({
+  match,
+  you,
+  opp,
+}: {
+  match: Match;
+  you: Tree;
+  opp: Tree;
+}) {
+  const ys = analyzeFlow(you);
+  const os = analyzeFlow(opp);
+  const tips = coachingTips(ys, os);
+  const title =
+    match.winner === 'draw'
+      ? 'Draw'
+      : `${(match.winner === 'you' ? you : opp).name} wins`;
+  const nameFor = (w: Match['winner']) =>
+    w === 'you' ? you.name : w === 'opp' ? opp.name : 'Draw';
+
+  return (
+    <div className="mt-8">
+      <div className="border border-neutral-900 bg-[#CDC7AE] px-6 py-5">
+        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-600">
+          Result
+        </p>
+        <h2 className="mt-1 font-serif text-[28px] tracking-tight">{title}</h2>
+        <p className="mt-1 font-mono text-[12px] uppercase tracking-[0.16em] text-neutral-700">
+          {match.youWins} – {match.oppWins}
+        </p>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <BattleStat name={you.name} s={ys} won={match.winner === 'you'} />
+        <BattleStat name={opp.name} s={os} won={match.winner === 'opp'} />
+      </div>
+      {tips.length > 0 && (
+        <div className="mt-4 rounded-xl border border-neutral-900 bg-[#FBF9F0] px-4 py-3">
+          <p className={monoLabel}>Coach’s Corner</p>
+          <ul className="mt-2 space-y-1.5 text-[13px] leading-relaxed text-neutral-700">
+            {tips.map((t) => (
+              <li key={t}>→ {t}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className={`mt-6 ${monoLabel}`}>Round by Round</p>
+      <ul className="mt-3 space-y-2">
+        {match.rounds.map((r, i) => (
+          <li
+            key={i}
+            className="flex items-center gap-3 rounded-xl border border-[#B7B098] bg-[#FBF9F0] px-4 py-2.5"
+          >
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+              R{i + 1}
+            </span>
+            <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] text-neutral-700">
+              {r.reason}
+            </span>
+            <span
+              className={`shrink-0 font-mono text-[10px] uppercase tracking-[0.16em] ${
+                r.winner === 'draw' ? 'text-neutral-400' : 'text-neutral-900'
+              }`}
+            >
+              {nameFor(r.winner)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// #/discover — prebuilt game plans; adding one clones it into your plans
 export function DiscoverPage() {
+  const createTree = useGraph((s) => s.createTree);
+  const add = (p: Preset) => openPlan(createTree(p.name, p.nodes, p.edges));
+  // white belts (or no belt set) see the basics first; colored belts see them last
+  const basicsFirst = ['', 'White'].includes(
+    localStorage.getItem('gps-belt') ?? '',
+  );
+  const presets = [...PRESETS].sort(
+    (a, b) =>
+      Number((a.level === 'basics') !== basicsFirst) -
+      Number((b.level === 'basics') !== basicsFirst),
+  );
+
   return (
     <Shell>
       <p className={monoLabel}>Explore</p>
       <h1 className="mt-1 font-serif text-[40px] tracking-tight">Discover</h1>
-      <div className="mt-10 border border-neutral-900 bg-[#FBF9F0]/90 px-6 py-10 text-center">
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
-          Coming Soon
-        </p>
-        <p className="mt-2 font-serif text-[24px] tracking-tight">
-          Find game plans to steal from.
-        </p>
-      </div>
+      <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-neutral-600">
+        Prebuilt game plans to steal from. Add one to your plans to edit it, or
+        send it to Battle.
+      </p>
+      <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {presets.map((p) => (
+          <li
+            key={p.name}
+            className="flex flex-col rounded-xl border border-[#B7B098] bg-[#FBF9F0] p-4"
+          >
+            {p.level === 'basics' && (
+              <span className="mb-1.5 self-start rounded-full bg-[#E7E2D0] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-600">
+                Fundamentals
+              </span>
+            )}
+            <h2 className="font-serif text-[19px] tracking-tight">{p.name}</h2>
+            <p className="mt-1 flex-1 text-[13px] leading-relaxed text-neutral-600">
+              {p.blurb}
+            </p>
+            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+              {p.nodes.length} moves · {p.edges.length} links
+            </p>
+            <button className={`${btnPrimary} mt-3`} onClick={() => add(p)}>
+              Add to My Plans
+            </button>
+          </li>
+        ))}
+      </ul>
     </Shell>
   );
 }
@@ -405,6 +846,24 @@ export default function Home() {
   const createTree = useGraph((s) => s.createTree);
   // 'new' opens an empty modal; a Folder opens it prefilled for editing
   const [modal, setModal] = useState<Folder | 'new' | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  // an exported plan becomes a NEW plan here (the canvas's Import instead
+  // replaces the open plan's graph). Name: from the file, else its filename.
+  const importPlan = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const { name, nodes, edges } = JSON.parse(await file.text());
+      if (!Array.isArray(nodes) || !Array.isArray(edges)) throw new Error();
+      const fallback = file.name.replace(/\.json$/i, '').replace(/-+/g, ' ').trim();
+      const planName =
+        typeof name === 'string' && name.trim()
+          ? name.trim()
+          : fallback || 'Imported Plan';
+      openPlan(createTree(planName, nodes, edges));
+    } catch {
+      alert('Invalid plan JSON.');
+    }
+  };
   const plans = Object.values(trees).sort((a, b) => b.updatedAt - a.updatedAt);
   // stale folder refs (e.g. imported data) fall back to unfiled
   const unfiled = plans.filter(
@@ -420,12 +879,25 @@ export default function Home() {
           </h1>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button className={btnGhost} onClick={() => fileRef.current?.click()}>
+            Import Plan
+          </button>
           <button className={btnGhost} onClick={() => setModal('new')}>
             + New Folder
           </button>
           <button className={btnPrimary} onClick={() => openPlan(createTree())}>
             + New Plan
           </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              importPlan(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
         </div>
       </div>
       {plans.length === 0 && folders.length === 0 ? (

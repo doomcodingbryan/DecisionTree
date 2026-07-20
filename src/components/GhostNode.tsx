@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useState } from 'react';
 import { useGraph, type GhostNode as GhostNodeType } from '../store';
-import { ALL_MOVES } from '../data/moves';
+import { ALL_MOVES, moveMatches } from '../data/moves';
 
 // Half-opacity suggestion card. ✓ materializes it as a real move exactly
 // where the ghost sits; ✗ dismisses the suggestion for this session. The
@@ -108,7 +108,7 @@ function CustomGhost({
   const q = query.trim().toLowerCase();
   // empty query → the suggestions that didn't fit on the two cards
   const options = q
-    ? ALL_MOVES.filter((m) => m.toLowerCase().includes(q)).slice(0, 6)
+    ? ALL_MOVES.filter((m) => moveMatches(m, q)).slice(0, 6)
     : suggested;
 
   return (

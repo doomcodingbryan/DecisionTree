@@ -1,8 +1,11 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { useGraph, type MoveNode as MoveNodeType } from '../store';
-import { ALL_MOVES } from '../data/moves';
+import { ALL_MOVES, moveMatches } from '../data/moves';
 import { getSuggestions } from '../data/transitions';
+import { getVideos, saveVideo } from '../video';
+import { MoveVideoModal } from './Home';
 
 const nodeWidth = 208;
 
@@ -32,10 +35,14 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
   const aiActive = useGraph((s) => s.aiFor === id);
   const toggleAi = useGraph((s) => s.toggleAi);
   const exits = getSuggestions(data.label).length;
+  // same localStorage map the Library page writes — attach there, watch here
+  const [videos, setVideos] = useState(getVideos);
+  const [watching, setWatching] = useState(false);
+  const videoId = videos[data.label];
 
   const q = query.trim().toLowerCase();
   const suggestions = (
-    q ? ALL_MOVES.filter((m) => m.toLowerCase().includes(q)) : ALL_MOVES
+    q ? ALL_MOVES.filter((m) => moveMatches(m, q)) : ALL_MOVES
   ).slice(0, 8);
 
   const commit = (value: string) => {
@@ -72,8 +79,25 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
         <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
           Move
         </span>
-        <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-400">
-          {exits} exits
+        <span className="flex items-center gap-2">
+          <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-400">
+            {exits} exits
+          </span>
+          {/* solid when a video is attached; a hover-revealed attach affordance otherwise */}
+          <button
+            className={`nodrag font-mono text-[10px] leading-none transition-opacity ${
+              videoId
+                ? 'text-neutral-900'
+                : 'text-neutral-400 opacity-0 hover:text-neutral-900 group-hover:opacity-100'
+            }`}
+            title={videoId ? 'Watch technique video' : 'Attach a technique video'}
+            onClick={(e) => {
+              e.stopPropagation();
+              setWatching(true);
+            }}
+          >
+            ▶
+          </button>
         </span>
       </div>
       <div className="px-3 pb-2.5 pt-2">
@@ -170,20 +194,37 @@ export default function MoveNode({ id, data, selected }: NodeProps<MoveNodeType>
           ))}
         </ul>
       )}
-      {/* node click still fires after this, panning the fresh cards into view */}
+      {/* node click still fires after this, panning the fresh cards into view.
+          Visible while selected too — hover-only would hide it on touch. */}
       <button
-        className={`nodrag absolute bottom-1 left-full ml-2 flex h-7 w-9 items-center justify-center rounded-full border border-neutral-900 font-mono text-[10px] tracking-[0.12em] text-neutral-900 transition-opacity ${
+        className={`nodrag absolute bottom-1 left-full ml-2 flex h-7 items-center justify-center rounded-full border border-neutral-900 px-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-900 transition-opacity ${
           aiActive
             ? 'bg-[#52E5D8] opacity-100'
-            : 'bg-[#F3EFE2] opacity-0 hover:bg-[#52E5D8] group-hover:opacity-100'
+            : `bg-[#F3EFE2] hover:bg-[#52E5D8] ${
+                selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              }`
         }`}
-        title={aiActive ? 'Hide AI suggestions' : 'AI: suggest next moves'}
+        title={aiActive ? 'Hide suggestions' : 'Suggest next moves'}
         onClick={() => toggleAi(id)}
       >
-        AI
+        Next
       </button>
       <Handle id="top" type="target" position={Position.Top} style={portStyle} />
       <Handle id="bottom" type="source" position={Position.Bottom} style={portStyle} />
+      {/* portal: React Flow's node transform would trap the fixed overlay */}
+      {watching &&
+        createPortal(
+          <MoveVideoModal
+            move={data.label}
+            videoId={videoId}
+            onAttach={(move, vid) => {
+              saveVideo(move, vid);
+              setVideos(getVideos());
+            }}
+            onClose={() => setWatching(false)}
+          />,
+          document.body,
+        )}
     </div>
   );
 }

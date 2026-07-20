@@ -3,10 +3,12 @@
 // `to` isn't a real move name, which is the one way this data silently rots.
 import assert from 'node:assert/strict';
 import {
+  ALIASES,
   ALL_MOVES,
   MOVE_LIBRARY,
   MOVE_CATEGORY,
   edgeLabelFor,
+  moveMatches,
 } from '../src/data/moves.ts';
 import {
   TRANSITIONS,
@@ -49,6 +51,15 @@ assert.equal(edgeLabelFor('Double Leg'), 'takedown');
 assert.equal(edgeLabelFor('Mount'), undefined, 'positions stay unlabeled');
 assert.equal(edgeLabelFor('Totally Not A Move'), undefined);
 
+// search aliases: every key canonical (a typo would silently never match)
+for (const key of Object.keys(ALIASES))
+  assert.ok(moves.has(key), `alias key "${key}" isn't a canonical move`);
+// and the matcher finds moves by slang, category, and name
+assert.ok(moveMatches('Rear Naked Choke', 'rnc'), '"rnc" should find the RNC');
+assert.ok(moveMatches('Bridge and Roll (Upa)', 'upa'), '"upa" should find the escape');
+assert.ok(moveMatches('Scissor Sweep', 'sweeps'), 'category words should match');
+assert.ok(!moveMatches('Armbar', 'choke'), 'no false positives');
+
 console.log(
-  `OK: ${ALL_MOVES.length} moves, ${Object.keys(TRANSITIONS).length} transition keys, all references valid`,
+  `OK: ${ALL_MOVES.length} moves, ${Object.keys(TRANSITIONS).length} transition keys, ${Object.keys(ALIASES).length} alias keys, all references valid`,
 );

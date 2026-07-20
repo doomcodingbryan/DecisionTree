@@ -82,9 +82,9 @@ function Flow() {
   const wrapRef = useRef<HTMLDivElement>(null);
 
   // Ghost cards: derived at render time, never stored — accepting one calls
-  // addChild, so the real graph stays clean. Hovering a node offers the
-  // pick-your-own card; the node's AI button toggles its two recommendation
-  // cards. Hovering a ghost keeps its parent anchored; a grace period covers
+  // addChild, so the real graph stays clean. Hovering (or tapping) a node
+  // offers the pick-your-own card; its Next button toggles the two
+  // recommendation cards. Hovering a ghost keeps its parent anchored; a grace period covers
   // the pointer's trip across the gap between parent and ghost.
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const aiFor = useGraph((s) => s.aiFor);
@@ -308,7 +308,11 @@ function Flow() {
         onNodeDragStart={snapshot}
         onSelectionDragStart={snapshot}
         onNodeClick={(_, node) => {
-          if (node.type === 'move') panToGhosts(node);
+          if (node.type !== 'move') return;
+          // tap doubles as hover: on touch there's no mouseenter, so selecting
+          // a node is what surfaces its suggestion cards
+          hoverEnter(node.id);
+          panToGhosts(node);
         }}
         onNodeMouseEnter={(_, node) =>
           hoverEnter(node.type === 'ghost' ? node.data.parentId : node.id)
@@ -354,7 +358,7 @@ function Flow() {
         <BlueprintFrame />
         <FitOnFirstPaint />
         <Controls showInteractive={false} position="bottom-left" />
-        {nodes.length === 0 && <EmptyState />}
+        {nodes.length === 0 ? <EmptyState /> : <HintBar />}
       </ReactFlow>
     </div>
   );
@@ -402,6 +406,32 @@ function BlueprintFrame() {
       <div className="absolute right-8 top-20 hidden font-mono text-[9px] uppercase tracking-[0.18em] text-neutral-400 sm:block">
         GAME PLAN / CANVAS
       </div>
+    </div>
+  );
+}
+
+// one-line onboarding for the canvas's hidden interactions; × remembers the
+// dismissal in localStorage so it never nags again
+function HintBar() {
+  const [hidden, setHidden] = useState(
+    () => localStorage.getItem('gps-hint') === 'done',
+  );
+  if (hidden) return null;
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-4">
+      <p className="pointer-events-auto flex items-center gap-2.5 rounded-full border border-neutral-900 bg-[#FBF9F0]/90 py-1.5 pl-4 pr-1.5 text-center font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-600 backdrop-blur">
+        Click a move to see where it leads · double-click to rename or add notes
+        <button
+          className="h-5 w-5 shrink-0 rounded-full border border-[#B7B098] leading-none text-neutral-500 hover:border-neutral-900 hover:text-black"
+          title="Got it — hide this hint"
+          onClick={() => {
+            localStorage.setItem('gps-hint', 'done');
+            setHidden(true);
+          }}
+        >
+          ×
+        </button>
+      </p>
     </div>
   );
 }

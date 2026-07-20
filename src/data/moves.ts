@@ -248,6 +248,64 @@ export const MOVE_CATEGORY: Record<string, string> = Object.fromEntries(
   ),
 );
 
+// Gym-speak → canonical names, so novice searches land ("rnc", "upa", "kob").
+// Keyed by canonical name; values are extra words matched by moveMatches.
+// Exported only for scripts/check-transitions.mjs — a typoed key silently
+// never matches, so the check asserts every key is canonical.
+export const ALIASES: Record<string, string> = {
+  'Rear Naked Choke': 'rnc mata leao choke from behind',
+  'Bridge and Roll (Upa)': 'upa mount escape',
+  'Elbow Escape (Shrimp)': 'shrimp hip escape mount escape',
+  'Cross Collar Choke': 'x choke',
+  'Baseball Bat Choke': 'baseball choke',
+  'Paper Cutter Choke': 'bread cutter',
+  'Ezekiel Choke': 'sleeve choke',
+  'Arm Triangle': 'kata gatame head and arm',
+  "D'Arce Choke": 'darce brabo',
+  'Triangle Choke': 'sankaku',
+  Kimura: 'double wristlock chicken wing',
+  Americana: 'keylock key lock figure four',
+  Armbar: 'arm bar juji gatame',
+  Kneebar: 'knee bar',
+  Wristlock: 'wrist lock',
+  'Straight Ankle Lock': 'footlock foot lock achilles',
+  'Calf Slicer': 'calf crush',
+  'Saddle (Inside Sankaku)': 'honey hole 411 four eleven',
+  'Single Leg X': 'slx ashi',
+  'De La Riva': 'dlr',
+  'Reverse De La Riva': 'rdlr',
+  'Closed Guard': 'full guard',
+  Mount: 'full mount',
+  'Side Control': 'side mount cross side 100 kilos',
+  'Back Control': 'back take rear mount hooks seatbelt',
+  'Knee on Belly': 'kob knee ride knee mount',
+  '50/50': 'fifty fifty',
+  'Knee Cut': 'knee slice knee slide',
+  'Hip Bump Sweep': 'sit up sweep',
+  Berimbolo: 'bolo',
+  'Guard Pull': 'pull guard',
+  'Double Leg': 'shot',
+  'Osoto Gari': 'outside trip',
+  'Seoi Nage': 'shoulder throw',
+  "Fireman's Carry": 'kata guruma',
+  'Sumi Gaeshi': 'sacrifice throw',
+  'Two-on-One': 'russian tie',
+  Whizzer: 'overhook',
+};
+
+// name + category + slang, lowercased once — the haystack every search uses
+const HAYSTACK: Record<string, string> = Object.fromEntries(
+  ALL_MOVES.map((m) => [
+    m,
+    `${m} ${MOVE_CATEGORY[m]} ${ALIASES[m] ?? ''}`.toLowerCase(),
+  ]),
+);
+
+// q must already be lowercased. Falls back to the label itself for
+// non-canonical (user-renamed) labels.
+export const moveMatches = (move: string, q: string): boolean =>
+  (HAYSTACK[move] ?? move.toLowerCase()).includes(q);
+
 // Chip word for an edge landing on a move of this category. Positions stay
 // unlabeled — arriving in a position says nothing about how you got there.
 const CATEGORY_EDGE_LABEL: Record<string, string> = {

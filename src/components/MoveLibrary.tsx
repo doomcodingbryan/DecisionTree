@@ -1,6 +1,6 @@
 import { useReactFlow } from '@xyflow/react';
 import { useRef, useState } from 'react';
-import { MOVE_LIBRARY } from '../data/moves';
+import { MOVE_LIBRARY, moveMatches } from '../data/moves';
 import { useGraph } from '../store';
 
 const actionBtn =
@@ -36,7 +36,8 @@ export default function MoveLibrary() {
 
   const exportJson = () => {
     const url = URL.createObjectURL(
-      new Blob([JSON.stringify({ nodes, edges }, null, 2)], {
+      // name travels with the file so importing on the Plans page keeps it
+      new Blob([JSON.stringify({ name: planName, nodes, edges }, null, 2)], {
         type: 'application/json',
       }),
     );
@@ -74,7 +75,7 @@ export default function MoveLibrary() {
       ([category, moves]) =>
         [
           category,
-          q ? moves.filter((m) => m.toLowerCase().includes(q)) : moves,
+          q ? moves.filter((m) => moveMatches(m, q)) : moves,
         ] as const,
     )
     .filter(([, moves]) => moves.length > 0);
