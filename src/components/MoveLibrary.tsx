@@ -1,7 +1,9 @@
 import { useReactFlow } from '@xyflow/react';
 import { useRef, useState } from 'react';
 import { MOVE_LIBRARY, moveMatches } from '../data/moves';
-import { useGraph } from '../store';
+import { useGraph, type MoveNode, type TransitionEdge } from '../store';
+import { getVideos, mergeVideos } from '../video';
+import ConfirmModal from './ConfirmModal';
 
 const actionBtn =
   'h-7 rounded-full border border-neutral-900 bg-[#F7F4E8] px-3 font-mono text-[9px] uppercase tracking-[0.12em] text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-[#F3EFE2] disabled:pointer-events-none disabled:opacity-35';
@@ -18,6 +20,13 @@ export default function MoveLibrary() {
   const activeId = useGraph((s) => s.activeId);
   const renameTree = useGraph((s) => s.renameTree);
   const [editingName, setEditingName] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  // parsed import held until the user confirms replacing a non-empty plan
+  const [pendingImport, setPendingImport] = useState<{
+    nodes: MoveNode[];
+    edges: TransitionEdge[];
+    videos?: Record<string, unknown>;
+  } | null>(null);
   // back where you came from: the plan's folder page, or the plans list
   const planFolder = useGraph((s) =>
     s.activeId ? s.trees[s.activeId]?.folder : undefined,
@@ -38,9 +47,22 @@ export default function MoveLibrary() {
   const { screenToFlowPosition, fitView } = useReactFlow();
 
   const exportJson = () => {
+    // include attached videos for the moves in this plan so references travel
+    const saved = getVideos();
+    const videos: Record<string, string> = {};
+    for (const n of nodes) {
+      const id = saved[n.data.label];
+      if (id) videos[n.data.label] = id;
+    }
+    const payload = {
+      name: planName,
+      nodes,
+      edges,
+      ...(Object.keys(videos).length ? { videos } : {}),
+    };
     const url = URL.createObjectURL(
-      // name travels with the file so importing on the Plans page keeps it
-      new Blob([JSON.stringify({ name: planName, nodes, edges }, null, 2)], {
+      // name + videos travel with the file so a shared plan keeps them
+      new Blob([JSON.stringify(payload, null, 2)], {
         type: 'application/json',
       }),
     );
@@ -55,18 +77,25 @@ export default function MoveLibrary() {
     URL.revokeObjectURL(url);
   };
 
+  const applyImport = (data: {
+    nodes: MoveNode[];
+    edges: TransitionEdge[];
+    videos?: Record<string, unknown>;
+  }) => {
+    load(data.nodes, data.edges);
+    if (data.videos && typeof data.videos === 'object') mergeVideos(data.videos);
+    setTimeout(() => fitView({ padding: 0.2 }), 0);
+  };
+
   const importJson = async (file: File | undefined) => {
     if (!file) return;
     try {
-      const { nodes, edges } = JSON.parse(await file.text());
+      const { nodes, edges, videos } = JSON.parse(await file.text());
       if (!Array.isArray(nodes) || !Array.isArray(edges)) throw new Error();
-      if (
-        useGraph.getState().nodes.length &&
-        !confirm('Replace the current plan with the imported graph?')
-      )
-        return;
-      load(nodes, edges);
-      setTimeout(() => fitView({ padding: 0.2 }), 0);
+      const data = { nodes, edges, videos };
+      // replacing a non-empty plan asks first, via the overlay
+      if (useGraph.getState().nodes.length) setPendingImport(data);
+      else applyImport(data);
     } catch {
       alert('Invalid graph JSON.');
     }
@@ -196,12 +225,7 @@ export default function MoveLibrary() {
           <button className={actionBtn} onClick={() => fileRef.current?.click()}>
             Import
           </button>
-          <button
-            className={actionBtn}
-            onClick={() => {
-              if (confirm('Clear the entire canvas?')) clear();
-            }}
-          >
+          <button className={actionBtn} onClick={() => setConfirmClear(true)}>
             Clear
           </button>
         </div>
@@ -280,6 +304,24 @@ export default function MoveLibrary() {
       <p className="shrink-0 border-t border-[#DCD6C1] px-3 py-2 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400">
         Drag onto canvas · click to add
       </p>
+      {confirmClear && (
+        <ConfirmModal
+          title="Clear the canvas?"
+          body="Every move and link on this plan will be removed. You can undo with ⌘Z."
+          confirmLabel="Clear"
+          onConfirm={clear}
+          onClose={() => setConfirmClear(false)}
+        />
+      )}
+      {pendingImport && (
+        <ConfirmModal
+          title="Replace this plan?"
+          body="Importing replaces the current plan's moves and links with the imported graph. You can undo with ⌘Z."
+          confirmLabel="Replace"
+          onConfirm={() => applyImport(pendingImport)}
+          onClose={() => setPendingImport(null)}
+        />
+      )}
     </aside>
   );
 }

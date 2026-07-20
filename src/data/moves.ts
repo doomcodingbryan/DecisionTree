@@ -248,6 +248,173 @@ export const MOVE_CATEGORY: Record<string, string> = Object.fromEntries(
   ),
 );
 
+// ============================================================
+// Move metadata — instructor associations + position/style tags.
+// Names stay the canonical identity; this is a sparse side-table keyed by
+// name (a typoed key is caught by scripts/check-transitions.mjs). Gi/No-Gi is
+// derived (gearTags), so it isn't repeated here. `instructors` are genuine
+// "known-for" associations, not video credits.
+// ============================================================
+export type MoveMeta = { instructors?: string[]; positions?: string[] };
+
+export const MOVE_META: Record<string, MoveMeta> = {
+  // --- dominant positions ---
+  Mount: { positions: ['Mount top'] },
+  'Side Control': { positions: ['Side control top'] },
+  'Back Control': { positions: ['Back control'] },
+  'Knee on Belly': { positions: ['Knee on belly'] },
+  'North-South': { positions: ['North-south top'] },
+  Turtle: { positions: ['Turtle'] },
+  Standing: { positions: ['Standup'] },
+
+  // --- guards (bottom) ---
+  'Closed Guard': { positions: ['Closed guard bottom'] },
+  'Open Guard': { positions: ['Open guard bottom'] },
+  'Half Guard': {
+    positions: ['Half guard bottom'],
+    instructors: ['Bernardo Faria', 'Tom DeBlass'],
+  },
+  'Deep Half Guard': {
+    positions: ['Half guard bottom'],
+    instructors: ['Bernardo Faria'],
+  },
+  'Butterfly Guard': { positions: ['Guard bottom'], instructors: ['Marcelo Garcia'] },
+  'De La Riva': { positions: ['Guard bottom'] },
+  'Reverse De La Riva': {
+    positions: ['Guard bottom'],
+    instructors: ['Mendes Brothers'],
+  },
+  'X-Guard': { positions: ['Guard bottom'], instructors: ['Marcelo Garcia'] },
+  'Single Leg X': { positions: ['Guard bottom'], instructors: ['Marcelo Garcia'] },
+  'Rubber Guard': {
+    positions: ['Closed guard bottom'],
+    instructors: ['Eddie Bravo'],
+  },
+  'Knee Shield': {
+    positions: ['Half guard bottom'],
+    instructors: ['Tom DeBlass'],
+  },
+  'K-Guard': { positions: ['Guard bottom', 'Leg lock'], instructors: ['Craig Jones'] },
+  'Spider Guard': { positions: ['Guard bottom'], instructors: ['Romulo Barral'] },
+  'Worm Guard': { positions: ['Guard bottom'], instructors: ['Keenan Cornelius'] },
+  'Lapel Guard': { positions: ['Guard bottom'], instructors: ['Keenan Cornelius'] },
+
+  // --- submissions ---
+  Armbar: { positions: ['Submission'] },
+  'Triangle Choke': { positions: ['Submission'], instructors: ['Ryan Hall'] },
+  Omoplata: { positions: ['Submission'] },
+  Kimura: { positions: ['Submission'] },
+  Guillotine: { positions: ['Front headlock'], instructors: ['Marcelo Garcia'] },
+  Marcelotine: { positions: ['Front headlock'], instructors: ['Marcelo Garcia'] },
+  'Rear Naked Choke': { positions: ['Back control'] },
+  'Cross Collar Choke': { positions: ['Submission'], instructors: ['Roger Gracie'] },
+  'Bow and Arrow Choke': { positions: ['Back control'] },
+  Gogoplata: { positions: ['Submission'], instructors: ['Eddie Bravo'] },
+  Twister: { positions: ['Submission'], instructors: ['Eddie Bravo'] },
+  'Von Flue Choke': {
+    positions: ['Side control top'],
+    instructors: ['Jason Von Flue'],
+  },
+  "D'Arce Choke": { positions: ['Front headlock'] },
+  'Anaconda Choke': { positions: ['Front headlock'] },
+  'Peruvian Necktie': { positions: ['Front headlock'] },
+
+  // --- leg locks ---
+  'Heel Hook': {
+    positions: ['Leg lock'],
+    instructors: ['John Danaher', 'Gordon Ryan'],
+  },
+  'Inside Heel Hook': {
+    positions: ['Leg lock'],
+    instructors: ['John Danaher', 'Gordon Ryan'],
+  },
+  'Straight Ankle Lock': { positions: ['Leg lock'] },
+  'Toe Hold': { positions: ['Leg lock'] },
+  Kneebar: { positions: ['Leg lock'] },
+  'Calf Slicer': { positions: ['Leg lock'], instructors: ['Eddie Bravo'] },
+  'Estima Lock': { positions: ['Leg lock'], instructors: ['Estima Brothers'] },
+  'Ashi Garami': { positions: ['Leg lock'], instructors: ['John Danaher'] },
+  'Saddle (Inside Sankaku)': {
+    positions: ['Leg lock'],
+    instructors: ['John Danaher'],
+  },
+  '50/50': { positions: ['Leg lock'] },
+  'Backside 50/50': { positions: ['Leg lock'], instructors: ['Craig Jones'] },
+  'Z-Lock': { positions: ['Leg lock'], instructors: ['Craig Jones'] },
+  'Aoki Lock': { positions: ['Leg lock'] },
+  Truck: { positions: ['Leg lock'], instructors: ['Eddie Bravo'] },
+  'Electric Chair': {
+    positions: ['Half guard bottom'],
+    instructors: ['Eddie Bravo'],
+  },
+
+  // --- sweeps ---
+  'Butterfly Sweep': { positions: ['Sweep'], instructors: ['Marcelo Garcia'] },
+  'Old School Sweep': {
+    positions: ['Half guard bottom', 'Sweep'],
+    instructors: ['Bernardo Faria'],
+  },
+  Berimbolo: {
+    positions: ['Sweep', 'Back take'],
+    instructors: ['Mendes Brothers', 'Miyao Brothers'],
+  },
+  'Waiter Sweep': {
+    positions: ['Half guard bottom', 'Sweep'],
+    instructors: ['Bernardo Faria'],
+  },
+
+  // --- passes ---
+  'Over-Under Pass': {
+    positions: ['Guard passing'],
+    instructors: ['Bernardo Faria'],
+  },
+  'Double Under Pass': {
+    positions: ['Guard passing'],
+    instructors: ['Bernardo Faria'],
+  },
+  'Toreando Pass': { positions: ['Guard passing'] },
+  'Knee Cut': { positions: ['Guard passing'] },
+  'Leg Drag': { positions: ['Guard passing'] },
+
+  // --- takedowns ---
+  'Double Leg': { positions: ['Standup'] },
+  'Single Leg': { positions: ['Standup'] },
+  'Arm Drag': { positions: ['Standup'], instructors: ['Marcelo Garcia'] },
+  'Imanari Roll': {
+    positions: ['Standup', 'Leg lock'],
+    instructors: ['Masakazu Imanari'],
+  },
+  'Osoto Gari': { positions: ['Standup'] },
+  'Uchi Mata': { positions: ['Standup'] },
+  'Seoi Nage': { positions: ['Standup'] },
+
+  // --- escapes ---
+  'Bridge and Roll (Upa)': { positions: ['Mount bottom', 'Escape'] },
+  'Elbow Escape (Shrimp)': { positions: ['Escape'] },
+  'Granby Roll': { positions: ['Escape'], instructors: ['Ryan Hall'] },
+};
+
+// Moves that fundamentally need the gi (collar/lapel/sleeve grips); everything
+// else works in both. Keys checked by scripts/check-transitions.mjs.
+export const GI_ONLY = new Set<string>([
+  'Spider Guard', 'Lasso Guard', 'Collar Sleeve', 'Worm Guard', 'Lapel Guard',
+  'Williams Guard', 'Squid Guard', 'Gubber Guard', 'Cross Collar Choke',
+  'Bow and Arrow Choke', 'Baseball Bat Choke', 'Clock Choke', 'Loop Choke',
+  'Paper Cutter Choke',
+]);
+
+export const gearTags = (move: string): string[] =>
+  GI_ONLY.has(move) ? ['Gi'] : ['Gi', 'No-Gi'];
+
+// Display tags: gear first, then curated position/style tags.
+export const moveTags = (move: string): string[] => [
+  ...gearTags(move),
+  ...(MOVE_META[move]?.positions ?? []),
+];
+
+export const moveInstructors = (move: string): string[] =>
+  MOVE_META[move]?.instructors ?? [];
+
 // Gym-speak → canonical names, so novice searches land ("rnc", "upa", "kob").
 // Keyed by canonical name; values are extra words matched by moveMatches.
 // Exported only for scripts/check-transitions.mjs — a typoed key silently
@@ -293,11 +460,12 @@ export const ALIASES: Record<string, string> = {
   Whizzer: 'overhook',
 };
 
-// name + category + slang, lowercased once — the haystack every search uses
+// name + category + slang + tags + instructors, lowercased once — the haystack
+// every search uses. Now "danaher", "gi", or "leg lock" all find moves.
 const HAYSTACK: Record<string, string> = Object.fromEntries(
   ALL_MOVES.map((m) => [
     m,
-    `${m} ${MOVE_CATEGORY[m]} ${ALIASES[m] ?? ''}`.toLowerCase(),
+    `${m} ${MOVE_CATEGORY[m]} ${ALIASES[m] ?? ''} ${moveTags(m).join(' ')} ${moveInstructors(m).join(' ')}`.toLowerCase(),
   ]),
 );
 

@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useGraph, type Folder, type Tree } from '../store';
+import ConfirmModal from './ConfirmModal';
 import {
   MOVE_LIBRARY,
   ALL_MOVES,
   MOVE_CATEGORY,
   moveMatches,
+  moveTags,
+  moveInstructors,
 } from '../data/moves';
 import {
   analyzeFlow,
@@ -14,7 +17,13 @@ import {
   type Match,
 } from '../battle';
 import { PRESETS, type Preset } from '../data/presets';
-import { getVideos, parseYouTubeId, saveVideo, youtubeSearch } from '../video';
+import {
+  getVideos,
+  mergeVideos,
+  parseYouTubeId,
+  saveVideo,
+  youtubeSearch,
+} from '../video';
 
 const openPlan = (id: string) => {
   window.location.hash = `#/t/${id}`;
@@ -322,6 +331,19 @@ const catBadge = (m: string) => (
     {MOVE_CATEGORY[m]}
   </span>
 );
+// gear/position tag chip; Gi/No-Gi get a faint teal tint to stand apart
+const tagChip = (t: string) => (
+  <span
+    key={t}
+    className={`rounded border px-1.5 py-0.5 font-mono text-[9px] tracking-wide ${
+      t === 'Gi' || t === 'No-Gi'
+        ? 'border-[#BFD8D2] bg-[#DFEFEB] text-[#1F7A6E]'
+        : 'border-[#DCD6C1] bg-[#EFEBDC] text-neutral-500'
+    }`}
+  >
+    {t}
+  </span>
+);
 
 // #/library — whitebeltclub-style catalog: a sortable technique table (or a
 // grid), category-badged, each row opening a video reference.
@@ -379,8 +401,10 @@ export function LibraryPage() {
         ? 'border-neutral-900 bg-neutral-900 text-[#F3EFE2]'
         : 'border-[#B7B098] text-neutral-500 hover:border-neutral-900'
     }`;
-  // shared column template so header and rows stay aligned
-  const cols = 'grid grid-cols-[1fr_128px_92px_32px] items-center gap-3';
+  // shared column template so header and rows stay aligned:
+  // Technique | Instructors | Category | Tags
+  const cols =
+    'grid grid-cols-[minmax(150px,1.6fr)_minmax(110px,1fr)_112px_minmax(140px,1.4fr)] items-center gap-3';
   const headCell =
     'font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500';
   const flip = toggleFavorite;
@@ -454,13 +478,21 @@ export function LibraryPage() {
                 <span className="mt-2 block overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[16px] tracking-tight text-neutral-900">
                   {m}
                 </span>
+                {moveInstructors(m).length > 0 && (
+                  <span className="mt-1 block truncate font-sans text-[11px] text-neutral-500">
+                    {moveInstructors(m).join(', ')}
+                  </span>
+                )}
+                <span className="mt-2 flex flex-wrap gap-1">
+                  {moveTags(m).map(tagChip)}
+                </span>
               </button>
             </li>
           ))}
         </ul>
       ) : (
         <div className="mt-4 overflow-x-auto">
-          <div className="min-w-[500px]">
+          <div className="min-w-[640px]">
             {/* header row shares `cols` with the data rows so columns line up */}
             <div className={`${cols} border-b border-neutral-900 px-2 pb-2`}>
               <button
@@ -469,63 +501,79 @@ export function LibraryPage() {
               >
                 Technique <span className="text-neutral-400">{arrow('name')}</span>
               </button>
+              <span className={headCell}>Instructors</span>
               <button
                 className={`${headCell} flex items-center gap-1 text-left hover:text-neutral-900`}
                 onClick={() => clickSort('cat')}
               >
                 Category <span className="text-neutral-400">{arrow('cat')}</span>
               </button>
-              <span className={headCell}>Video</span>
-              <span />
+              <span className={headCell}>Tags</span>
             </div>
-            {rows.map((m) => (
-              <div
-                key={m}
-                role="button"
-                tabIndex={0}
-                className={`${cols} group cursor-pointer border-b border-[#DCD6C1] px-2 py-2.5 outline-none transition-colors last:border-0 hover:bg-[#FBF9F0] focus-visible:bg-[#FBF9F0]`}
-                onClick={() => setSelected(m)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setSelected(m);
-                  }
-                }}
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[15px] text-neutral-900">
-                    {m}
-                  </span>
-                  <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100">
-                    Open
-                  </span>
-                </span>
-                {catBadge(m)}
-                {videos[m] ? (
-                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#1F7A6E]">
-                    ▶ Video
-                  </span>
-                ) : (
-                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100">
-                    + Add
-                  </span>
-                )}
-                <button
-                  className={`text-[15px] leading-none transition-opacity ${
-                    favSet.has(m)
-                      ? 'text-red-500 opacity-100'
-                      : 'text-neutral-400 opacity-0 hover:text-red-500 group-hover:opacity-100'
-                  }`}
-                  title={favSet.has(m) ? 'Remove favorite' : 'Add to favorites'}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    flip(m);
+            {rows.map((m) => {
+              const instructors = moveInstructors(m);
+              return (
+                <div
+                  key={m}
+                  role="button"
+                  tabIndex={0}
+                  className={`${cols} group cursor-pointer border-b border-[#DCD6C1] px-2 py-2.5 outline-none transition-colors last:border-0 hover:bg-[#FBF9F0] focus-visible:bg-[#FBF9F0]`}
+                  onClick={() => setSelected(m)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelected(m);
+                    }
                   }}
                 >
-                  {favSet.has(m) ? '♥' : '♡'}
-                </button>
-              </div>
-            ))}
+                  {/* technique + hover cluster: video ▶, favorite, open */}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-serif text-[15px] text-neutral-900">
+                      {m}
+                    </span>
+                    {videos[m] && (
+                      <span
+                        className="shrink-0 font-mono text-[10px] leading-none text-[#1F7A6E]"
+                        title="Has a video"
+                      >
+                        ▶
+                      </span>
+                    )}
+                    <button
+                      className={`shrink-0 text-[13px] leading-none transition-opacity ${
+                        favSet.has(m)
+                          ? 'text-red-500 opacity-100'
+                          : 'text-neutral-400 opacity-0 hover:text-red-500 group-hover:opacity-100'
+                      }`}
+                      title={favSet.has(m) ? 'Remove favorite' : 'Add to favorites'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        flip(m);
+                      }}
+                    >
+                      {favSet.has(m) ? '♥' : '♡'}
+                    </button>
+                    <span className="shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-400 opacity-0 transition-opacity group-hover:opacity-100">
+                      Open
+                    </span>
+                  </span>
+                  {/* instructors */}
+                  <span className="min-w-0 truncate font-sans text-[12px] text-neutral-600">
+                    {instructors.length ? (
+                      instructors.join(', ')
+                    ) : (
+                      <span className="text-neutral-300">—</span>
+                    )}
+                  </span>
+                  {/* category */}
+                  <span>{catBadge(m)}</span>
+                  {/* tags */}
+                  <span className="flex flex-wrap gap-1">
+                    {moveTags(m).map(tagChip)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -612,7 +660,7 @@ export function MoveVideoModal({
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <a
-                className={btnGhost}
+                className={`${btnGhost} inline-flex items-center`}
                 href={youtubeSearch(move)}
                 target="_blank"
                 rel="noreferrer"
@@ -1194,13 +1242,14 @@ export default function Home() {
   const importPlan = async (file: File | undefined) => {
     if (!file) return;
     try {
-      const { name, nodes, edges } = JSON.parse(await file.text());
+      const { name, nodes, edges, videos } = JSON.parse(await file.text());
       if (!Array.isArray(nodes) || !Array.isArray(edges)) throw new Error();
       const fallback = file.name.replace(/\.json$/i, '').replace(/-+/g, ' ').trim();
       const planName =
         typeof name === 'string' && name.trim()
           ? name.trim()
           : fallback || 'Imported Plan';
+      if (videos && typeof videos === 'object') mergeVideos(videos);
       openPlan(createTree(planName, nodes, edges));
     } catch {
       alert('Invalid plan JSON.');
@@ -1541,64 +1590,6 @@ function FolderModal({
           </button>
         </div>
       </form>
-    </div>
-  );
-}
-
-// custom delete confirmation — an overlay in the app's style, replacing the
-// native confirm(). Cancel is focused so a stray Enter can't delete.
-function ConfirmModal({
-  title,
-  body,
-  confirmLabel = 'Delete',
-  onConfirm,
-  onClose,
-}: {
-  title: string;
-  body: string;
-  confirmLabel?: string;
-  onConfirm: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4"
-      role="dialog"
-      aria-modal="true"
-      // stopPropagation: cards below can have their own onClick (e.g. folder nav)
-      onClick={(e) => {
-        e.stopPropagation();
-        onClose();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
-      }}
-    >
-      <div
-        className="w-full max-w-sm rounded-xl border border-neutral-900 bg-[#F3EFE2] p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-neutral-500">
-          Confirm
-        </p>
-        <h2 className="mt-1 font-serif text-[24px] text-neutral-900">{title}</h2>
-        <p className="mt-3 text-[14px] leading-relaxed text-neutral-600">{body}</p>
-        <div className="mt-6 flex justify-end gap-2">
-          <button type="button" className={btnGhost} autoFocus onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={`${btn} border-red-600 bg-red-600 text-[#F3EFE2] hover:bg-red-500`}
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

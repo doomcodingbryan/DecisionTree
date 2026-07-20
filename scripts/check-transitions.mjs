@@ -5,9 +5,12 @@ import assert from 'node:assert/strict';
 import {
   ALIASES,
   ALL_MOVES,
+  GI_ONLY,
   MOVE_LIBRARY,
   MOVE_CATEGORY,
+  MOVE_META,
   edgeLabelFor,
+  gearTags,
   moveMatches,
 } from '../src/data/moves.ts';
 import {
@@ -54,6 +57,18 @@ assert.equal(edgeLabelFor('Totally Not A Move'), undefined);
 // search aliases: every key canonical (a typo would silently never match)
 for (const key of Object.keys(ALIASES))
   assert.ok(moves.has(key), `alias key "${key}" isn't a canonical move`);
+
+// move metadata: every MOVE_META and GI_ONLY key is a canonical move
+for (const key of Object.keys(MOVE_META))
+  assert.ok(moves.has(key), `MOVE_META key "${key}" isn't a canonical move`);
+for (const key of GI_ONLY)
+  assert.ok(moves.has(key), `GI_ONLY entry "${key}" isn't a canonical move`);
+// gear tags: gi-only moves get just Gi, everything else both
+assert.deepEqual(gearTags('Spider Guard'), ['Gi'], 'gi-only move is Gi only');
+assert.deepEqual(gearTags('Heel Hook'), ['Gi', 'No-Gi'], 'default is both');
+// instructor/tag words are searchable
+assert.ok(moveMatches('Heel Hook', 'danaher'), 'search finds by instructor');
+assert.ok(moveMatches('Berimbolo', 'back take'), 'search finds by position tag');
 // and the matcher finds moves by slang, category, and name
 assert.ok(moveMatches('Rear Naked Choke', 'rnc'), '"rnc" should find the RNC');
 assert.ok(moveMatches('Bridge and Roll (Upa)', 'upa'), '"upa" should find the escape');

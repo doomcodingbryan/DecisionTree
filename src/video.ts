@@ -40,3 +40,29 @@ export function saveVideo(move: string, id: string | null): void {
   else delete m[move];
   localStorage.setItem(KEY, JSON.stringify(m));
 }
+
+// Pure merge for imported plan videos: fill only gaps (never clobber a video
+// the user already set), validating each id. Exported for the check script.
+export function mergedVideos(
+  current: Record<string, string>,
+  incoming: Record<string, unknown>,
+): { next: Record<string, string>; added: number } {
+  const next = { ...current };
+  let added = 0;
+  for (const [move, raw] of Object.entries(incoming ?? {})) {
+    if (typeof raw !== 'string' || next[move]) continue;
+    const id = parseYouTubeId(raw);
+    if (id) {
+      next[move] = id;
+      added++;
+    }
+  }
+  return { next, added };
+}
+
+// Merge an imported plan's { move: videoId } map into local storage.
+export function mergeVideos(incoming: Record<string, unknown>): number {
+  const { next, added } = mergedVideos(getVideos(), incoming);
+  if (added) localStorage.setItem(KEY, JSON.stringify(next));
+  return added;
+}
