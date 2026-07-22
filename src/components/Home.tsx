@@ -1,5 +1,26 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useGraph, type Folder, type Tree } from '../store';
+import {
+  Background,
+  BackgroundVariant,
+  BaseEdge,
+  Controls,
+  EdgeLabelRenderer,
+  Handle,
+  Position,
+  ReactFlow,
+  ReactFlowProvider,
+  getBezierPath,
+  type EdgeProps,
+  type NodeProps,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import {
+  useGraph,
+  type Folder,
+  type Tree,
+  type MoveNode as MoveNodeType,
+  type TransitionEdge as TransitionEdgeType,
+} from '../store';
 import ConfirmModal from './ConfirmModal';
 import {
   MOVE_LIBRARY,
@@ -70,11 +91,11 @@ function Shell({ children }: { children: ReactNode }) {
   // Account isn't a tab — it's reached via the profile card / avatar below
   const onAccount = here.startsWith('#/account');
   const tabs = [
-    // folder pages count as Plans. icon = letter badge shown on the collapsed rail
+    // folder pages count as Plans. icon = symbol badge shown on the collapsed rail
     {
       href: '#/plans',
       label: 'Plans',
-      icon: 'P',
+      icon: '▢',
       // All Plans (#/flows) and folder pages are sub-views of Plans
       active:
         here.startsWith('#/plans') ||
@@ -84,19 +105,19 @@ function Shell({ children }: { children: ReactNode }) {
     {
       href: '#/library',
       label: 'Library',
-      icon: 'L',
+      icon: '≡',
       active: here.startsWith('#/library'),
     },
     {
       href: '#/battle',
       label: 'Battle',
-      icon: 'B',
+      icon: '⬥',
       active: here.startsWith('#/battle'),
     },
     {
       href: '#/discover',
       label: 'Discover',
-      icon: 'D',
+      icon: '◇',
       active: here.startsWith('#/discover'),
     },
   ];
@@ -452,7 +473,7 @@ export function LibraryPage() {
       {rows.length === 0 ? (
         <p className={`mt-8 ${monoLabel}`}>
           {onlyFavs && !needle
-            ? 'No favorites yet — tap the heart on a move to save it here.'
+            ? 'No favorites yet. Tap the heart on a move to save it here.'
             : `No moves match “${q.trim()}”.`}
         </p>
       ) : view === 'grid' ? (
@@ -558,7 +579,7 @@ export function LibraryPage() {
                     {instructors.length ? (
                       instructors.join(', ')
                     ) : (
-                      <span className="text-neutral-300">—</span>
+                      <span className="text-neutral-300">-</span>
                     )}
                   </span>
                   {/* category */}
@@ -730,7 +751,7 @@ const PERSONAS: Record<string, { name: string; belt: string; blurb: string }> = 
   'White Belt Fundamentals': {
     name: 'Riley',
     belt: 'White',
-    blurb: 'Textbook survivor — escapes first, then the basic finishes.',
+    blurb: 'Textbook survivor: escapes first, then the basic finishes.',
   },
   'Closed Guard Attacks': {
     name: 'Sofia',
@@ -740,12 +761,12 @@ const PERSONAS: Record<string, { name: string; belt: string; blurb: string }> = 
   'Wrestle to Mount': {
     name: 'Marcus',
     belt: 'Purple',
-    blurb: 'Wrestler — heavy top pressure straight to mount.',
+    blurb: 'Wrestler: heavy top pressure straight to mount.',
   },
   'Leg Lock Entries': {
     name: 'Dex',
     belt: 'Brown',
-    blurb: 'Leg locker — dives for the ashi and inverts to the saddle.',
+    blurb: 'Leg locker: dives for the ashi and inverts to the saddle.',
   },
   'Back Attacks': {
     name: 'Kaito',
@@ -898,7 +919,7 @@ export function BattlePage() {
   // per-mode guidance: a one-line caption + numbered steps for the tab's flow
   const modeCaption =
     mode === 'lobby'
-      ? 'Face a built-in grappler — each is a real game plan wearing a belt. Beat one and the next belt is waiting.'
+      ? 'Face a built-in grappler: each is a real game plan wearing a belt. Beat one and the next belt is waiting.'
       : 'Spar two of your own plans head-to-head to see which game holds up.';
   const steps =
     mode === 'lobby'
@@ -928,7 +949,7 @@ export function BattlePage() {
         <>
           <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-neutral-600">
             Pressure-test a game plan by simulating scrambles against an
-            opponent — no live sparring partner needed. Pick a plan, choose who
+            opponent: no live sparring partner needed. Pick a plan, choose who
             to face, and read the scouting report.
           </p>
 
@@ -1015,7 +1036,7 @@ export function BattlePage() {
               </div>
               {plans.length < 2 && (
                 <p className="mt-4 max-w-md rounded-xl border border-[#B7B098] bg-[#FBF9F0] px-4 py-3 text-[13px] leading-relaxed text-neutral-600">
-                  You’ve only got one plan — make another on the{' '}
+                  You’ve only got one plan: make another on the{' '}
                   <a className="underline hover:text-neutral-900" href="#/plans">
                     Plans page
                   </a>{' '}
@@ -1120,7 +1141,7 @@ function BattleResult({
       </div>
       <p className="mt-2 max-w-xl text-[12px] leading-relaxed text-neutral-500">
         {match.rounds.length} scrambles simulated. Each fighter runs their plan
-        from a starting position until someone lands a submission — the deeper,
+        from a starting position until someone lands a submission. The deeper,
         more finish-heavy game tends to win.
       </p>
       <p className={`mt-6 ${monoLabel}`}>Scouting Report</p>
@@ -1172,6 +1193,49 @@ function BattleResult({
   );
 }
 
+// Discover card — blurb clamps to 2 lines so cards stay even; Read more opens
+// the flow's read-only preview (#/preview/<name>) where the full blurb lives.
+function DiscoverCard({ p, onAdd }: { p: Preset; onAdd: () => void }) {
+  const persona = PERSONAS[p.name];
+  return (
+    <li className="flex flex-col rounded-xl border border-[#B7B098] bg-[#FBF9F0] p-4">
+      <span className="mb-1.5 self-start rounded-full bg-[#E7E2D0] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-600">
+        {p.tag}
+      </span>
+      <h2 className="font-serif text-[19px] tracking-tight">{p.name}</h2>
+      <a
+        href={`#/preview/${encodeURIComponent(p.name)}`}
+        className="group mt-1 block text-left"
+      >
+        <span className="line-clamp-2 text-[13px] leading-relaxed text-neutral-600">
+          {p.blurb}
+        </span>
+        <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400 group-hover:text-neutral-900">
+          Read more →
+        </span>
+      </a>
+      {persona && (
+        <div className="mt-3 flex items-center gap-2">
+          {beltAvatar(persona.name, persona.belt)}
+          <span className="font-serif text-[14px] tracking-tight">
+            {persona.name}
+          </span>
+        </div>
+      )}
+      <p className="mt-auto pt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+        {p.nodes.length} moves · {p.edges.length} links
+      </p>
+      <button
+        className={`${btnPrimary} mt-3`}
+        title={`Copy “${p.name}” into your plans so you can edit it`}
+        onClick={onAdd}
+      >
+        Add to My Plans
+      </button>
+    </li>
+  );
+}
+
 // #/discover — prebuilt game plans; adding one clones it into your plans
 export function DiscoverPage() {
   const createTree = useGraph((s) => s.createTree);
@@ -1196,33 +1260,183 @@ export function DiscoverPage() {
       </p>
       <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {presets.map((p) => (
-          <li
-            key={p.name}
-            className="flex flex-col rounded-xl border border-[#B7B098] bg-[#FBF9F0] p-4"
-          >
-            {p.level === 'basics' && (
-              <span className="mb-1.5 self-start rounded-full bg-[#E7E2D0] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-600">
-                Fundamentals
-              </span>
-            )}
-            <h2 className="font-serif text-[19px] tracking-tight">{p.name}</h2>
-            <p className="mt-1 flex-1 text-[13px] leading-relaxed text-neutral-600">
-              {p.blurb}
-            </p>
-            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">
-              {p.nodes.length} moves · {p.edges.length} links
-            </p>
-            <button
-              className={`${btnPrimary} mt-3`}
-              title={`Copy “${p.name}” into your plans so you can edit it`}
-              onClick={() => add(p)}
-            >
-              Add to My Plans
-            </button>
-          </li>
+          <DiscoverCard key={p.name} p={p} onAdd={() => add(p)} />
         ))}
       </ul>
     </Shell>
+  );
+}
+
+const previewPortStyle = {
+  width: 10,
+  height: 10,
+  left: '50%',
+  background: '#F3EFE2',
+  border: '2px solid #171717',
+  borderRadius: '50%',
+} as const;
+
+// read-only twins of MoveNode / TransitionEdge: same look, none of the store
+// wiring or editing affordances — used only in the Discover preview canvas
+function PreviewNode({ data }: NodeProps<MoveNodeType>) {
+  return (
+    <div
+      style={{
+        width: 208,
+        minHeight: 88,
+        background: '#FFFFFF',
+        border: '1px solid #171717',
+        borderRadius: 10,
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+      }}
+    >
+      <div className="flex h-7 items-center rounded-t-[9px] border-b border-[#DCD6C1] bg-[#EFEBDC] px-2.5">
+        <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-neutral-500">
+          Move
+        </span>
+      </div>
+      <div className="px-3 pb-2.5 pt-2">
+        <span
+          className="block overflow-hidden text-ellipsis whitespace-nowrap font-serif text-[15px] tracking-tight text-neutral-900"
+          title={data.label}
+        >
+          {data.label}
+        </span>
+        {data.notes && (
+          <p className="mt-1 whitespace-pre-wrap break-words text-[11px] leading-relaxed text-neutral-500">
+            {data.notes}
+          </p>
+        )}
+      </div>
+      <Handle id="top" type="target" position={Position.Top} style={previewPortStyle} />
+      <Handle
+        id="bottom"
+        type="source"
+        position={Position.Bottom}
+        style={previewPortStyle}
+      />
+    </div>
+  );
+}
+
+function PreviewEdge({
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  data,
+}: EdgeProps<TransitionEdgeType>) {
+  const [path, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+  });
+  return (
+    <>
+      <BaseEdge
+        path={path}
+        style={{ stroke: '#171717', strokeWidth: 1.2, strokeDasharray: '4 4' }}
+      />
+      {data?.label && (
+        <EdgeLabelRenderer>
+          <div
+            className="nodrag nopan absolute"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            }}
+          >
+            <span
+              className="border border-neutral-900 bg-[#F3EFE2] px-2 py-[3px] font-mono text-[10px] lowercase tracking-[0.08em] text-neutral-900"
+              style={{ borderRadius: 999 }}
+            >
+              {data.label}
+            </span>
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </>
+  );
+}
+
+const previewNodeTypes = { move: PreviewNode };
+const previewEdgeTypes = { transition: PreviewEdge };
+
+// #/preview/<name> — read-only look inside a Discover flow; the full blurb and
+// creator live in the corner panel, with Add to My Plans to keep a copy
+export function DiscoverPreview({ name }: { name: string }) {
+  const preset = PRESETS.find((p) => p.name === name);
+  const createTree = useGraph((s) => s.createTree);
+  useEffect(() => {
+    if (!preset) window.location.hash = '#/discover';
+  }, [preset]);
+  if (!preset) return null;
+  const persona = PERSONAS[preset.name];
+  return (
+    <ReactFlowProvider>
+      <div className="relative h-screen w-screen bg-[#F3EFE2] text-neutral-900">
+        <ReactFlow
+          nodes={preset.nodes}
+          edges={preset.edges}
+          nodeTypes={previewNodeTypes}
+          edgeTypes={previewEdgeTypes}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          panOnScroll
+          minZoom={0.15}
+          maxZoom={1.6}
+          fitView
+          fitViewOptions={{ padding: 0.35 }}
+          proOptions={{ hideAttribution: true }}
+          style={{ background: '#F3EFE2' }}
+        >
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={24}
+            size={1.5}
+            color="rgba(23,23,23,0.18)"
+          />
+          <Controls showInteractive={false} position="bottom-left" />
+        </ReactFlow>
+        <div className="absolute left-4 top-4 z-10 max-w-[20rem] rounded-xl border border-neutral-900 bg-[#FBF9F0]/95 p-5 backdrop-blur sm:left-6 sm:top-6">
+          <a
+            href="#/discover"
+            className="font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500 hover:text-neutral-900"
+          >
+            ← Discover
+          </a>
+          <span className="mt-3 block self-start rounded-full bg-[#E7E2D0] px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-600 w-fit">
+            {preset.tag}
+          </span>
+          <h1 className="mt-2 font-serif text-[26px] leading-tight tracking-tight">
+            {preset.name}
+          </h1>
+          <p className="mt-2 text-[13px] leading-relaxed text-neutral-600">
+            {preset.blurb}
+          </p>
+          {persona && (
+            <div className="mt-3 flex items-center gap-2">
+              {beltAvatar(persona.name, persona.belt)}
+              <span className="font-serif text-[14px] tracking-tight">
+                {persona.name}
+              </span>
+            </div>
+          )}
+          <button
+            className={`${btnPrimary} mt-4 w-full`}
+            title={`Copy “${preset.name}” into your plans so you can edit it`}
+            onClick={() => openPlan(createTree(preset.name, preset.nodes, preset.edges))}
+          >
+            Add to My Plans
+          </button>
+        </div>
+      </div>
+    </ReactFlowProvider>
   );
 }
 
@@ -1429,7 +1643,7 @@ export function FolderPage({ name }: { name?: string }) {
       </p>
       {plans.length === 0 ? (
         <p className={`mt-10 ${monoLabel}`}>
-          Nothing here yet — start one above, or file plans from the Plans page.
+          Nothing here yet. Start one above, or file plans from the Plans page.
         </p>
       ) : (
         <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

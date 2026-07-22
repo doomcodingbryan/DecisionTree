@@ -5,6 +5,8 @@ import type { MoveNode, TransitionEdge } from '../store';
 export type Preset = {
   name: string;
   blurb: string;
+  // category chip shown on every Discover card (keeps them the same height)
+  tag: string;
   // 'basics' floats to the top of Discover for white belts (and sinks for colored belts)
   level?: 'basics';
   nodes: MoveNode[];
@@ -38,6 +40,7 @@ const edge = (source: string, target: string, label: string): TransitionEdge => 
 export const PRESETS: Preset[] = [
   {
     name: 'White Belt Fundamentals',
+    tag: 'Fundamentals',
     blurb:
       'Survive first: escape mount and side control, recover closed guard, sweep to the top, and finish with the basics.',
     level: 'basics',
@@ -45,7 +48,7 @@ export const PRESETS: Preset[] = [
       node('wbf-sc', -360, 0, 'Side Control', 'Under side control: frame at neck and hip, get on your side.'),
       node('wbf-mt', 120, 0, 'Mount', 'Under mount: elbows in, protect your neck.'),
       node('wbf-sce', -360, 160, 'Side Control Escape'),
-      node('wbf-upa', -120, 160, 'Bridge and Roll (Upa)', 'You land on top in their guard — posture up.'),
+      node('wbf-upa', -120, 160, 'Bridge and Roll (Upa)', 'You land on top in their guard: posture up.'),
       node('wbf-shr', 360, 160, 'Elbow Escape (Shrimp)'),
       node('wbf-cg', 0, 320, 'Closed Guard', 'Home base. Break their posture and attack.'),
       node('wbf-hb', -240, 480, 'Hip Bump Sweep'),
@@ -72,6 +75,7 @@ export const PRESETS: Preset[] = [
   },
   {
     name: 'Closed Guard Attacks',
+    tag: 'Guard',
     blurb:
       'Break posture and hunt the finish: armbar and triangle off the collar, or sweep to the top and choke.',
     nodes: [
@@ -98,6 +102,7 @@ export const PRESETS: Preset[] = [
   },
   {
     name: 'Wrestle to Mount',
+    tag: 'Takedowns',
     blurb:
       'Pressure top game: shoot the double, pass to mount and finish, or snap to the front headlock series.',
     nodes: [
@@ -126,6 +131,7 @@ export const PRESETS: Preset[] = [
   },
   {
     name: 'Leg Lock Entries',
+    tag: 'Leg Locks',
     blurb:
       'Modern lower-body game: enter the ashi from single-leg-X, invert to the saddle, or split to 50/50.',
     nodes: [
@@ -150,6 +156,7 @@ export const PRESETS: Preset[] = [
   },
   {
     name: 'Back Attacks',
+    tag: 'Back Attacks',
     blurb:
       'Finish from the back: choke off the seatbelt, or trap an arm in the gift wrap for the armbar and triangle.',
     nodes: [

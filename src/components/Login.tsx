@@ -91,7 +91,7 @@ export default function Login({
                 Enter the Studio
               </button>
               <p className="mt-4 text-center font-mono text-[9px] uppercase tracking-[0.16em] text-neutral-500">
-                No account needed — any email works.
+                No account needed: any email works.
               </p>
             </form>
           </div>

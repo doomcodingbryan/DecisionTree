@@ -423,7 +423,7 @@ function HintBar() {
         Click a move to see where it leads · double-click to rename or add notes
         <button
           className="h-5 w-5 shrink-0 rounded-full border border-[#B7B098] leading-none text-neutral-500 hover:border-neutral-900 hover:text-black"
-          title="Got it — hide this hint"
+          title="Got it: hide this hint"
           onClick={() => {
             localStorage.setItem('gps-hint', 'done');
             setHidden(true);

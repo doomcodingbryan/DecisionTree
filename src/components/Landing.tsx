@@ -59,7 +59,7 @@ export default function Landing() {
                 <p className="mt-3 text-[13.5px] leading-relaxed text-neutral-800">
                   Map positions, transitions, and submissions into one
                   connected system. Hover any move for suggested follow-ups
-                  grounded in real grappling data — so you build chains, not
+                  grounded in real grappling data so you build chains, not
                   collections, and always know your next move.
                 </p>
               </div>
@@ -72,7 +72,7 @@ export default function Landing() {
               >
                 {localStorage.getItem('gps-user')
                   ? 'Open Your Studio'
-                  : 'Start Building — Free'}
+                  : 'Start Building (Free)'}
               </a>
               <a
                 className="rounded-full border border-neutral-900 px-6 py-2.5 font-mono text-[12px] uppercase tracking-[0.12em] text-neutral-900 hover:bg-neutral-900 hover:text-[#F3EFE2]"

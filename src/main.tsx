@@ -5,6 +5,7 @@ import Home, {
   AccountPage,
   BattlePage,
   DiscoverPage,
+  DiscoverPreview,
   FolderPage,
   LibraryPage,
 } from './components/Home';
@@ -55,6 +56,14 @@ function appRoute(hash: string) {
   if (hash.startsWith('#/plans')) return <Home />;
   if (hash.startsWith('#/library')) return <LibraryPage />;
   if (hash.startsWith('#/battle')) return <BattlePage />;
+  const previewName = hash.match(/^#\/preview\/(.+)$/)?.[1];
+  if (previewName)
+    return (
+      <DiscoverPreview
+        key={previewName}
+        name={decodeURIComponent(previewName)}
+      />
+    );
   if (hash.startsWith('#/discover')) return <DiscoverPage />;
   if (hash.startsWith('#/account')) return <AccountPage />;
   if (hash.startsWith('#/sample')) return <SampleTree />;

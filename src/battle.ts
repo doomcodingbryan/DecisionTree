@@ -73,7 +73,7 @@ export function coachingTips(you: FlowStats, opp: FlowStats): string[] {
   const tips: string[] = [];
   if (you.submissions === 0)
     tips.push(
-      'No submissions — every line ends in a stall. Chain a finish onto your strongest position.',
+      'No submissions: every line ends in a stall. Chain a finish onto your strongest position.',
     );
   else if (you.submissions < opp.submissions)
     tips.push(
@@ -81,11 +81,11 @@ export function coachingTips(you: FlowStats, opp: FlowStats): string[] {
     );
   if (you.moves > 1 && you.links < you.moves - 1)
     tips.push(
-      'Some moves aren’t linked to anything — connect them into a chain or they never come up in a scramble.',
+      'Some moves aren’t linked to anything: connect them into a chain or they never come up in a scramble.',
     );
   if (you.maxDepth < opp.maxDepth)
     tips.push(
-      `Your longest chain is ${you.maxDepth} ${you.maxDepth === 1 ? 'move' : 'moves'} to the rival’s ${opp.maxDepth}. Deeper chains win scrambles — extend a line toward a finish.`,
+      `Your longest chain is ${you.maxDepth} ${you.maxDepth === 1 ? 'move' : 'moves'} to the rival’s ${opp.maxDepth}. Deeper chains win scrambles: extend a line toward a finish.`,
     );
   if (you.moves > 1 && you.breadth < 2)
     tips.push(
